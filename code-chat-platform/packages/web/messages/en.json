@@ -1,0 +1,84 @@
+{
+  "nav": {
+    "features": "FEATURES",
+    "docs": "DOCS", 
+    "support": "SUPPORT",
+    "profile": "PROFILE",
+    "developer": "DEVELOPER"
+  },
+  "hero": {
+    "title": "CHAT",
+    "subtitle": "IN",
+    "description": "CODE",
+    "tagline": "REAL-TIME COLLABORATION",
+    "features": {
+      "instant": {
+        "title": "INSTANT",
+        "description": "Messages appear as you type"
+      },
+      "secure": {
+        "title": "SECURE", 
+        "description": "Private rooms with encryption"
+      },
+      "universal": {
+        "title": "UNIVERSAL",
+        "description": "Works with any code editor"
+      },
+      "minimal": {
+        "title": "MINIMAL",
+        "description": "No bloated interfaces"
+      }
+    }
+  },
+  "terminal": {
+    "title": "TERMINAL",
+    "install": "# INSTALL CLI",
+    "create": "# CREATE ROOM",
+    "join": "# JOIN ROOM", 
+    "start": "# START CHATTING",
+    "connected": "✓ Connected to room",
+    "fileCreated": "✓ File created: .codechat"
+  },
+  "rooms": {
+    "create": {
+      "title": "CREATE",
+      "subtitle": "Start new collaboration"
+    },
+    "join": {
+      "title": "JOIN",
+      "subtitle": "Active conversations"
+    }
+  },
+  "stats": {
+    "openSource": "Open Source",
+    "latency": "Latency", 
+    "rooms": "Rooms",
+    "available": "Available"
+  },
+  "footer": {
+    "description": "Minimalist real-time collaboration for developers. Chat directly in your code editor.",
+    "product": "Product",
+    "features": "Features",
+    "pricing": "Pricing",
+    "documentation": "Documentation",
+    "api": "API",
+    "support": "Support",
+    "helpCenter": "Help Center",
+    "community": "Community",
+    "status": "Status",
+    "contact": "Contact",
+    "copyright": "© 2024 Kawazu. Crafted with precision."
+  },
+  "developer": {
+    "title": "DEVELOPER",
+    "subtitle": "Meet the creator",
+    "name": "Your Name",
+    "role": "Full Stack Developer",
+    "location": "Japan",
+    "description": "Passionate developer creating minimalist tools for better collaboration. Focused on clean code, elegant design, and seamless user experiences.",
+    "skills": "SKILLS",
+    "contact": "CONTACT",
+    "projects": "PROJECTS",
+    "experience": "EXPERIENCE"
+  }
+} 

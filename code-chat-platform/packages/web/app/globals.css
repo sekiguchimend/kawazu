@@ -1,0 +1,249 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@300;400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global Styles for Monochrome Design */
+@layer base {
+  * {
+    @apply border-gray-300 dark:border-gray-700;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-white dark:bg-black text-black dark:text-white;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-optical-sizing: auto;
+  }
+
+  /* Typography Scale - Clean & Minimal */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-black tracking-tight leading-tight;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-900;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 dark:bg-gray-600 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500 dark:bg-gray-500;
+  }
+}
+
+/* Component Layer - Minimal & Functional */
+@layer components {
+  /* Button Styles - Pure Monochrome */
+  .btn {
+    @apply inline-flex items-center justify-center font-medium transition-all duration-200 focus:outline-none focus:ring-0;
+  }
+
+  .btn-primary {
+    @apply bg-black text-white border border-black;
+    @apply hover:bg-white hover:text-black hover:border-black;
+    @apply dark:bg-white dark:text-black dark:border-white;
+    @apply dark:hover:bg-black dark:hover:text-white dark:hover:border-white;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-black border border-black;
+    @apply hover:bg-black hover:text-white;
+    @apply dark:bg-black dark:text-white dark:border-white;
+    @apply dark:hover:bg-white dark:hover:text-black;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-black border border-transparent;
+    @apply hover:bg-black hover:text-white hover:border-black;
+    @apply dark:text-white dark:hover:bg-white dark:hover:text-black;
+  }
+
+  /* Button Sizes */
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  .btn-md {
+    @apply px-4 py-2 text-sm;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
+  /* Card Styles - Minimal Borders */
+  .card {
+    @apply bg-white dark:bg-black border border-black dark:border-white p-6;
+    @apply hover:shadow-minimal dark:hover:shadow-gray-800/20 transition-all duration-300;
+  }
+
+  .card-minimal {
+    @apply bg-white dark:bg-black border border-gray-200 dark:border-gray-800 p-4;
+  }
+
+  /* Input Styles - Clean & Functional */
+  .input {
+    @apply w-full px-4 py-2 bg-white dark:bg-black text-black dark:text-white;
+    @apply border border-black dark:border-white;
+    @apply focus:outline-none focus:ring-0 focus:border-gray-500 dark:focus:border-gray-400;
+    @apply placeholder:text-gray-500 dark:placeholder:text-gray-400;
+  }
+
+  .textarea {
+    @apply input resize-none;
+  }
+
+  /* Form Styles */
+  .form-group {
+    @apply space-y-2;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-black dark:text-white uppercase tracking-wide;
+  }
+
+  /* Layout Components */
+  .container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Typography Components */
+  .heading-xl {
+    @apply text-6xl md:text-8xl font-black leading-none tracking-tighter;
+  }
+
+  .heading-lg {
+    @apply text-4xl md:text-5xl font-black leading-tight tracking-tight;
+  }
+
+  .heading-md {
+    @apply text-2xl md:text-3xl font-bold leading-tight;
+  }
+
+  .heading-sm {
+    @apply text-lg md:text-xl font-bold;
+  }
+
+  .text-intro {
+    @apply text-lg font-light leading-relaxed;
+  }
+
+  .text-content {
+    @apply text-base font-normal leading-relaxed;
+  }
+
+  .text-detail {
+    @apply text-sm font-light;
+  }
+
+  .text-caption {
+    @apply text-xs font-light uppercase tracking-wider;
+  }
+
+  /* Badge Styles */
+  .badge {
+    @apply inline-flex items-center px-2 py-1 text-xs font-medium border;
+  }
+
+  .badge-primary {
+    @apply bg-black text-white border-black;
+    @apply dark:bg-white dark:text-black dark:border-white;
+  }
+
+  .badge-secondary {
+    @apply bg-white text-black border-black;
+    @apply dark:bg-black dark:text-white dark:border-white;
+  }
+
+  /* Navigation */
+  .nav-link {
+    @apply text-sm font-medium hover:opacity-60 transition-opacity;
+  }
+
+  /* Utility Classes */
+  .divider {
+    @apply w-full h-px bg-black dark:bg-white;
+  }
+
+  .divider-vertical {
+    @apply w-px h-full bg-black dark:bg-white;
+  }
+
+  /* Animation Classes */
+  .animate-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animate-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animate-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+}
+
+/* Utilities Layer */
+@layer utilities {
+  /* Typography Utilities */
+  .text-gradient {
+    @apply bg-gradient-to-r from-black to-gray-600 bg-clip-text text-transparent;
+    @apply dark:from-white dark:to-gray-400;
+  }
+
+  /* Border Utilities */
+  .border-minimal {
+    @apply border border-gray-200 dark:border-gray-800;
+  }
+
+  .border-strong {
+    @apply border border-black dark:border-white;
+  }
+
+  /* Shadow Utilities */
+  .shadow-crisp {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  .shadow-clean {
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  /* Focus Utilities */
+  .focus-minimal {
+    @apply focus:outline-none focus:ring-1 focus:ring-black dark:focus:ring-white;
+  }
+
+  /* Hover Effects */
+  .hover-lift {
+    @apply transform transition-transform duration-200 hover:-translate-y-1;
+  }
+
+  .hover-scale {
+    @apply transform transition-transform duration-200 hover:scale-105;
+  }
+
+  /* Dark Mode Utilities */
+  .dark-invert {
+    @apply dark:invert;
+  }
+
+  .dark-filter {
+    @apply dark:brightness-0 dark:invert;
+  }
+}

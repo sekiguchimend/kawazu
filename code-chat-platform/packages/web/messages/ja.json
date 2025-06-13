@@ -1,0 +1,84 @@
+{
+  "nav": {
+    "features": "機能",
+    "docs": "ドキュメント", 
+    "support": "サポート",
+    "profile": "プロフィール",
+    "developer": "開発者"
+  },
+  "hero": {
+    "title": "チャット",
+    "subtitle": "イン",
+    "description": "コード",
+    "tagline": "リアルタイム コラボレーション",
+    "features": {
+      "instant": {
+        "title": "瞬時",
+        "description": "タイピング中にメッセージが表示"
+      },
+      "secure": {
+        "title": "セキュア", 
+        "description": "暗号化されたプライベートルーム"
+      },
+      "universal": {
+        "title": "ユニバーサル",
+        "description": "どのコードエディタでも動作"
+      },
+      "minimal": {
+        "title": "ミニマル",
+        "description": "無駄のないインターフェース"
+      }
+    }
+  },
+  "terminal": {
+    "title": "ターミナル",
+    "install": "# CLI をインストール",
+    "create": "# ルーム作成",
+    "join": "# ルーム参加", 
+    "start": "# チャット開始",
+    "connected": "✓ ルームに接続しました",
+    "fileCreated": "✓ ファイルを作成: .codechat"
+  },
+  "rooms": {
+    "create": {
+      "title": "作成",
+      "subtitle": "新しいコラボレーションを開始"
+    },
+    "join": {
+      "title": "参加",
+      "subtitle": "アクティブな会話"
+    }
+  },
+  "stats": {
+    "openSource": "オープンソース",
+    "latency": "レイテンシ", 
+    "rooms": "ルーム数",
+    "available": "利用可能"
+  },
+  "footer": {
+    "description": "開発者のためのミニマルなリアルタイムコラボレーション。コードエディタで直接チャット。",
+    "product": "プロダクト",
+    "features": "機能",
+    "pricing": "料金",
+    "documentation": "ドキュメント",
+    "api": "API",
+    "support": "サポート",
+    "helpCenter": "ヘルプセンター",
+    "community": "コミュニティ",
+    "status": "ステータス",
+    "contact": "お問い合わせ",
+    "copyright": "© 2024 Kawazu. 精密に作られました。"
+  },
+  "developer": {
+    "title": "開発者",
+    "subtitle": "作者について",
+    "name": "あなたの名前",
+    "role": "フルスタック開発者",
+    "location": "日本",
+    "description": "より良いコラボレーションのためのミニマルなツールを作成する情熱的な開発者。クリーンなコード、エレガントなデザイン、シームレスなユーザーエクスペリエンスに焦点を当てています。",
+    "skills": "スキル",
+    "contact": "連絡先",
+    "projects": "プロジェクト",
+    "experience": "経験"
+  }
+} 

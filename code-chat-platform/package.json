@@ -1,0 +1,21 @@
+{
+  "name": "code-chat-platform",
+  "private": true,
+  "workspaces": [
+    "packages/web",
+    "packages/api", 
+    "packages/cli"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm run dev --workspace=packages/web",
+    "dev:api": "npm run dev --workspace=packages/api",
+    "build": "npm run build --workspace=packages/web && npm run build --workspace=packages/api && npm run build --workspace=packages/cli",
+    "setup": "./scripts/setup.sh",
+    "install-cli": "./scripts/install-cli.sh",
+    "install-cli:windows": "./scripts/install-cli.bat"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "name": "kawazu",
+  "version": "1.0.1",
+  "description": "kawazu CLI tool for real-time chat in your editor",
+  "main": "dist/index.js",
+  "bin": {
+    "kawazu": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "socket.io-client": "^4.8.1",
+    "inquirer": "^8.2.6",
+    "chalk": "^4.1.2",
+    "fs-extra": "^11.2.0",
+    "chokidar": "^3.5.3",
+    "ora": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/inquirer": "^8.2.10",
+    "@types/node": "^22.15.30",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "keywords": [
+    "cli",
+    "chat",
+    "realtime",
+    "editor",
+    "development",
+    "file-sharing",
+    "collaboration",
+    "pair-programming"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/kawazu.git"
+  },
+  "homepage": "https://github.com/your-username/kawazu#readme",
+  "bugs": {
+    "url": "https://github.com/your-username/kawazu/issues"
+  }
+}
