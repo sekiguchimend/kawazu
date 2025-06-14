@@ -16,28 +16,66 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
+// デバッグ用：異なる設定でもう一つのクライアントを作成
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  },
+  db: {
+    schema: 'public'
+  },
+  global: {
+    headers: {
+      'Authorization': `Bearer ${supabaseServiceKey}`,
+      'apikey': supabaseServiceKey
+    }
+  }
+});
+
+console.log('🔍 Supabase client initialized with:');
+console.log('URL:', supabaseUrl);
+console.log('Service Key present:', !!supabaseServiceKey);
+console.log('Service Key length:', supabaseServiceKey?.length || 0);
+
 // 接続テスト関数
 export async function testConnection(): Promise<boolean> {
   try {
+    console.log('🔍 Testing database connection...');
+    console.log('🔍 Supabase URL:', supabaseUrl);
+    console.log('🔍 Service Key exists:', !!supabaseServiceKey);
+    console.log('🔍 Service Key length:', supabaseServiceKey?.length || 0);
+    
     if (!supabaseServiceKey) {
       console.warn('⚠️  SUPABASE_SERVICE_KEY未設定のため接続テストをスキップします');
       return false;
     }
 
-    const { data, error } = await supabase
+    console.log('🔍 Attempting to query rooms table...');
+    const { data, error, count } = await supabase
       .from('rooms')
-      .select('count(*)')
+      .select('id', { count: 'exact' })
       .limit(1);
     
     if (error) {
-      console.error('❌ Database connection failed:', error.message);
+      console.error('❌ Database connection failed with error:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       return false;
     }
     
     console.log('✅ Database connection successful');
+    console.log('🔍 Query result:', data);
     return true;
   } catch (error) {
-    console.error('❌ Database connection error:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('❌ Database connection error (caught exception):', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      error: error
+    });
     return false;
   }
 }

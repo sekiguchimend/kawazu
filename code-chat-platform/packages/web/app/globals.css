@@ -12,8 +12,8 @@
   html {
     scroll-behavior: smooth;
   }
-  
-  body {
+
+body {
     @apply bg-white dark:bg-black text-black dark:text-white;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     font-optical-sizing: auto;
@@ -49,19 +49,19 @@
     @apply inline-flex items-center justify-center font-medium transition-all duration-200 focus:outline-none focus:ring-0;
   }
 
-  .btn-primary {
+.btn-primary {
     @apply bg-black text-white border border-black;
     @apply hover:bg-white hover:text-black hover:border-black;
     @apply dark:bg-white dark:text-black dark:border-white;
     @apply dark:hover:bg-black dark:hover:text-white dark:hover:border-white;
-  }
+}
 
-  .btn-secondary {
+.btn-secondary {
     @apply bg-white text-black border border-black;
     @apply hover:bg-black hover:text-white;
     @apply dark:bg-black dark:text-white dark:border-white;
     @apply dark:hover:bg-white dark:hover:text-black;
-  }
+}
 
   .btn-ghost {
     @apply bg-transparent text-black border border-transparent;
@@ -80,10 +80,10 @@
 
   .btn-lg {
     @apply px-6 py-3 text-base;
-  }
+}
 
   /* Card Styles - Minimal Borders */
-  .card {
+.card {
     @apply bg-white dark:bg-black border border-black dark:border-white p-6;
     @apply hover:shadow-minimal dark:hover:shadow-gray-800/20 transition-all duration-300;
   }

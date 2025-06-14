@@ -1,13 +1,21 @@
 import Stripe from 'stripe';
 
-// テストモード設定
-export const IS_TEST_MODE = process.env.NODE_ENV === 'development' && !process.env.STRIPE_SECRET_KEY;
+// テストモード設定 - モックキーまたはキーなしの場合はテストモード
+export const IS_TEST_MODE = process.env.NODE_ENV === 'development' && 
+  (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.includes('mock'));
+
+// デバッグログ追加
+console.log('🔍 Stripe Configuration:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('STRIPE_SECRET_KEY exists:', !!process.env.STRIPE_SECRET_KEY);
+console.log('STRIPE_SECRET_KEY value:', process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.substring(0, 30) + '...' : 'undefined');
+console.log('STRIPE_SECRET_KEY contains mock:', process.env.STRIPE_SECRET_KEY?.includes('mock'));
+console.log('IS_TEST_MODE:', IS_TEST_MODE);
 
 let stripe: Stripe | null = null;
 
-if (process.env.STRIPE_SECRET_KEY) {
+if (process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_SECRET_KEY.includes('mock')) {
   stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2024-11-20.acacia',
     typescript: true,
   });
 } else if (!IS_TEST_MODE) {

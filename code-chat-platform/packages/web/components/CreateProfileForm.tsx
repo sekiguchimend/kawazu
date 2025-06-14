@@ -126,7 +126,8 @@ export function CreateProfileForm({ onProfileCreated }: CreateProfileFormProps) 
           value={formData.username}
           onChange={handleInputChange}
           placeholder="例: kawazu_user"
-          pattern="[a-zA-Z0-9_-]+"
+          pattern="[a-zA-Z0-9_\-]+"
+          title="ユーザー名は半角英数字、ハイフン(-)、アンダースコア(_)のみ使用できます。"
           className="input-field w-full"
           required
           disabled={isSubmitting}

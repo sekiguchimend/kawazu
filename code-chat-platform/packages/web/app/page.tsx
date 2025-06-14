@@ -161,7 +161,7 @@ export default function HomePage() {
                   <CreateRoomForm onRoomCreated={handleRoomCreated} />
                 </div>
               </div>
-
+              
               {/* Join Room */}
               <div className="space-y-8">
                 <div className="space-y-4">

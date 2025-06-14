@@ -7,6 +7,60 @@ import { roomCreationLimiter } from '../middleware/security';
 
 const router = Router();
 
+// ルーム一覧取得
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const { data: rooms, error } = await supabase
+      .from('rooms')
+      .select(`
+        id,
+        name,
+        slug,
+        is_private,
+        created_at,
+        updated_at
+      `)
+      .eq('is_private', false) // パブリックルームのみ表示
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Get rooms error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get rooms'
+      });
+      return;
+    }
+
+    // 各ルームの参加者数を取得
+    const roomsWithCounts = await Promise.all(
+      (rooms || []).map(async (room) => {
+        const { count: participantCount } = await supabase
+          .from('room_participants')
+          .select('*', { count: 'exact', head: true })
+          .eq('room_id', room.id);
+
+        return {
+          ...room,
+          participant_count: participantCount || 0
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: roomsWithCounts
+    });
+
+  } catch (error) {
+    console.error('Get rooms error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
 // ルーム作成
 router.post('/', roomCreationLimiter, authenticateToken, validateRoom, async (req: AuthenticatedRequest, res: Response) => {
   try {

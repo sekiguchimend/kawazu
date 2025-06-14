@@ -4,6 +4,12 @@ import { API_URL } from './supabase';
 // API関数のベース実装
 async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
   try {
+    console.log('=== API Call Debug ===');
+    console.log('URL:', `${API_URL}${endpoint}`);
+    console.log('Options:', options);
+    console.log('Headers:', options.headers);
+    console.log('Body:', options.body);
+
     const response = await fetch(`${API_URL}${endpoint}`, {
       headers: {
         'Content-Type': 'application/json',
@@ -12,9 +18,32 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
       ...options,
     });
 
-    const data = await response.json();
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+    
+    const responseText = await response.text();
+    console.log('Response text:', responseText);
+    
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Raw response:', responseText);
+      return {
+        success: false,
+        error: 'Invalid JSON response'
+      };
+    }
+    
+    console.log('Parsed data:', data);
     
     if (!response.ok) {
+      console.error('API Error Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: data
+      });
       return {
         success: false,
         error: data.error || 'API request failed',
@@ -24,12 +53,49 @@ async function apiCall<T>(endpoint: string, options: RequestInit = {}): Promise<
 
     return data;
   } catch (error) {
-    console.error('API call failed:', error);
+    console.error('=== API Call Exception ===');
+    console.error('Error:', error);
+    console.error('Error type:', typeof error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return {
       success: false,
       error: 'Network error'
     };
   }
+}
+
+// 認証用のAPI呼び出し（Authorizationヘッダーを自動で付与）
+async function authenticatedApiCall<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    return {
+      success: false,
+      error: 'No authentication token found'
+    };
+  }
+
+  return apiCall<T>(endpoint, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+}
+
+// 現在のユーザー情報取得
+export async function getCurrentUser(): Promise<ApiResponse<{ user: any; profile: UserProfile | null }>> {
+  return authenticatedApiCall<{ user: any; profile: UserProfile | null }>('/api/auth/me');
+}
+
+// JWTトークン検証
+export async function verifyToken(token: string): Promise<ApiResponse<{ valid: boolean; user?: any }>> {
+  return apiCall<{ valid: boolean; user?: any }>('/api/auth/verify', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
 }
 
 // ルーム作成

@@ -90,7 +90,7 @@ router.post('/chat', authenticateToken, async (req: AuthenticatedRequest, res: R
         user_id: req.user!.id,
         date: today,
         count: (usage?.count || 0) + 1,
-        tokens_used: (usage?.tokens_used || 0) + aiResponse.tokensUsed
+        tokens_used: (usage?.count || 0) + (aiResponse.tokensUsed || 100)
       });
 
     res.json({

@@ -176,11 +176,13 @@ async function handleSubscriptionCreated(event: any) {
     }
 
     // メールアドレスからユーザー取得
-    const { data: authUser } = await supabase.auth.admin.getUserByEmail(
-      (customer as any).email
-    );
+    const { data: authUser } = await supabase.auth.admin.listUsers();
 
-    if (!authUser.user) {
+    if (!authUser.users || authUser.users.length === 0) {
+      throw new Error(`User not found for email: ${(customer as any).email}`);
+    }
+    const user = authUser.users.find((u: any) => u.email === (customer as any).email);
+    if (!user) {
       throw new Error(`User not found for email: ${(customer as any).email}`);
     }
 
@@ -188,7 +190,7 @@ async function handleSubscriptionCreated(event: any) {
     const { data: newSubscription } = await supabase
       .from('user_subscriptions')
       .insert({
-        user_id: authUser.user.id,
+        user_id: user.id,
         ...subscriptionData
       })
       .select()
@@ -198,7 +200,7 @@ async function handleSubscriptionCreated(event: any) {
     await supabase
       .from('subscription_history')
       .insert({
-        user_id: authUser.user.id,
+        user_id: user.id,
         subscription_id: newSubscription.id,
         plan_id: plan.id,
         action: 'created',

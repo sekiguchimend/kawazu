@@ -42,6 +42,8 @@ export const authenticateToken = async (
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1];
 
+    console.log('🔍 Auth middleware - Token present:', !!token);
+
     if (!token) {
       res.status(401).json({
         success: false,
@@ -51,15 +53,13 @@ export const authenticateToken = async (
     }
 
     const decoded = jwt.verify(token, JWT_SECRET) as any;
+    console.log('🔍 Auth middleware - JWT decoded:', { id: decoded.id, username: decoded.username });
     
-    // データベースからユーザー情報を取得
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, username, email, role, is_active')
-      .eq('id', decoded.id)
-      .single();
+    // Supabaseのauth.usersテーブルからユーザー情報を取得
+    const { data: user, error } = await supabase.auth.admin.getUserById(decoded.id);
 
-    if (error || !user || !user.is_active) {
+    if (error || !user.user) {
+      console.log('❌ Auth middleware - User not found:', error);
       res.status(401).json({
         success: false,
         error: 'Invalid or expired token'
@@ -67,9 +67,18 @@ export const authenticateToken = async (
       return;
     }
 
-    req.user = user;
+    console.log('✅ Auth middleware - User found:', user.user.id);
+
+    req.user = {
+      id: user.user.id,
+      email: user.user.email || decoded.email,
+      username: decoded.username || user.user.user_metadata?.username || 'user',
+      role: decoded.role || 'user'
+    };
+    
     next();
   } catch (error) {
+    console.log('❌ Auth middleware - JWT error:', error);
     res.status(403).json({
       success: false,
       error: 'Invalid token'
@@ -89,14 +98,15 @@ export const optionalAuth = async (
 
     if (token) {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
-      const { data: user } = await supabase
-        .from('users')
-        .select('id, username, email, role, is_active')
-        .eq('id', decoded.id)
-        .single();
+      const { data: user, error } = await supabase.auth.admin.getUserById(decoded.id);
 
-      if (user && user.is_active) {
-        req.user = user;
+      if (!error && user.user) {
+        req.user = {
+          id: user.user.id,
+          email: user.user.email || decoded.email,
+          username: decoded.username || user.user.user_metadata?.username || 'user',
+          role: decoded.role || 'user'
+        };
       }
     }
     

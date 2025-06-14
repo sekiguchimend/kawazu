@@ -1,179 +1,496 @@
 'use client';
 
-import { useState } from 'react';
-import { useTranslation } from '@/hooks/useTranslation';
-import { LanguageSwitcherDropdown } from '@/components/LanguageSwitcherDropdown';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { CheckIcon } from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
 
-export default function PricingPage() {
-  const { t } = useTranslation();
-  const [billingCycle, setBillingCycle] = useState('monthly');
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  stripe_price_id: string;
+  amount: number;
+  currency: string;
+  features: {
+    max_rooms?: number | string;
+    max_participants_per_room?: number | string;
+    storage_gb?: number;
+    advanced_features?: boolean;
+    priority_support?: boolean;
+  };
+}
 
-  const plans = [
-    {
-      name: 'Free',
-      price: { monthly: '$0', yearly: '$0' },
-      description: 'For individuals and small teams getting started.',
-      features: [
-        'Up to 3 rooms',
-        'Unlimited messages',
-        'Real-time collaboration',
-        'Community support',
-      ],
-      cta: 'Start for Free',
-      isPrimary: false,
-    },
-    {
-      name: 'Pro',
-      price: { monthly: '$10', yearly: '$96' },
-      description: 'For growing teams that need more power and features.',
-      features: [
-        'Unlimited rooms',
-        'Unlimited messages',
-        'Advanced collaboration tools',
-        'Priority support',
-        'Team management',
-      ],
-      cta: 'Get Started',
-      isPrimary: true,
-    },
-    {
-      name: 'Enterprise',
-      price: { monthly: 'Custom', yearly: 'Custom' },
-      description: 'For large organizations with specific security and support needs.',
-      features: [
-        'All Pro features',
-        'Single Sign-On (SSO)',
-        'Dedicated support & SLA',
-        'On-premise deployment option',
-        'Custom integrations',
-      ],
-      cta: 'Contact Sales',
-      isPrimary: false,
-    },
-  ];
+interface UserSubscription {
+  id: string;
+  status: string;
+  plan_id: string;
+  current_period_end: string;
+  cancel_at_period_end: boolean;
+  subscription_plans: {
+    name: string;
+    amount: number;
+    features: any;
+  };
+}
+
+// フォールバック用の静的プランデータ
+const FALLBACK_PLANS: SubscriptionPlan[] = [
+  {
+    id: 'basic',
+    name: 'ベーシック',
+    stripe_price_id: 'price_basic_1000_jpy',
+    amount: 1000,
+    currency: 'jpy',
+    features: {
+      max_rooms: 5,
+      max_participants_per_room: 10,
+      storage_gb: 1
+    }
+  },
+  {
+    id: 'standard',
+    name: 'スタンダード',
+    stripe_price_id: 'price_standard_3000_jpy',
+    amount: 3000,
+    currency: 'jpy',
+    features: {
+      max_rooms: 20,
+      max_participants_per_room: 50,
+      storage_gb: 10,
+      advanced_features: true
+    }
+  },
+  {
+    id: 'premium',
+    name: 'プレミアム',
+    stripe_price_id: 'price_premium_5000_jpy',
+    amount: 5000,
+    currency: 'jpy',
+    features: {
+      max_rooms: 'unlimited',
+      max_participants_per_room: 'unlimited',
+      storage_gb: 100,
+      advanced_features: true,
+      priority_support: true
+    }
+  }
+];
+
+const PricingPage = () => {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+  const [plans, setPlans] = useState<SubscriptionPlan[]>(FALLBACK_PLANS);
+  const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [processingPlan, setProcessingPlan] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchPlans();
+    if (isAuthenticated) {
+      fetchCurrentSubscription();
+    } else {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  const fetchPlans = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/api/subscriptions/plans`);
+      
+      if (!response.ok) {
+        console.warn('Failed to fetch plans from API, using fallback data');
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.data && data.data.length > 0) {
+        setPlans(data.data);
+      }
+    } catch (error) {
+      console.error('Fetch plans error:', error);
+      console.log('Using fallback plan data');
+    }
+  };
+
+  const fetchCurrentSubscription = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/api/subscriptions/current`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setCurrentSubscription(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Fetch current subscription error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubscribe = async (priceId: string) => {
+    if (!isAuthenticated || !user) {
+      toast.error('決済を開始するにはログインが必要です');
+      router.push('/auth');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('認証トークンが見つかりません');
+      router.push('/auth');
+      return;
+    }
+
+    setProcessingPlan(priceId);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      console.log('Starting checkout process...', { priceId, apiUrl });
+      
+      const response = await fetch(`${apiUrl}/api/subscriptions/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ price_id: priceId })
+      });
+
+      console.log('Checkout response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Checkout API error:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Checkout response data:', data);
+
+      if (data.success && data.data?.checkout_url) {
+        console.log('Redirecting to checkout URL:', data.data.checkout_url);
+        // 直接リダイレクトして#にならないようにする
+        window.location.href = data.data.checkout_url;
+      } else {
+        throw new Error(data.error || 'チェックアウトURLが取得できませんでした');
+      }
+    } catch (error) {
+      console.error('Checkout error:', error);
+      toast.error(`決済の開始に失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+    } finally {
+      setProcessingPlan(null);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    if (!isAuthenticated) {
+      toast.error('ログインが必要です');
+      router.push('/auth');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('認証トークンが見つかりません');
+      router.push('/auth');
+      return;
+    }
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/api/subscriptions/portal`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.data?.portal_url) {
+        window.location.href = data.data.portal_url;
+      } else {
+        toast.error('管理ポータルの作成に失敗しました');
+      }
+    } catch (error) {
+      console.error('Portal error:', error);
+      toast.error('管理ポータルの作成に失敗しました');
+    }
+  };
+
+  const formatFeatureValue = (value: any) => {
+    if (value === 'unlimited') return '無制限';
+    if (typeof value === 'number') return value.toLocaleString();
+    return value;
+  };
+
+  const getFeatureList = (features: any) => {
+    const featureList = [];
+    
+    if (features.max_rooms) {
+      featureList.push(`ルーム作成: ${formatFeatureValue(features.max_rooms)}個`);
+    }
+    if (features.max_participants_per_room) {
+      featureList.push(`ルーム参加者: ${formatFeatureValue(features.max_participants_per_room)}人`);
+    }
+    if (features.storage_gb) {
+      featureList.push(`ストレージ: ${features.storage_gb}GB`);
+    }
+    if (features.advanced_features) {
+      featureList.push('高度な機能');
+    }
+    if (features.priority_support) {
+      featureList.push('優先サポート');
+    }
+    
+    return featureList;
+  };
+
+  const isCurrentPlan = (planId: string) => {
+    return currentSubscription?.plan_id === planId;
+  };
+
+  if (loading || authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white">
-      {/* Header */}
-      <header className="fixed top-0 w-full z-50 bg-white/90 dark:bg-black/90 backdrop-blur-sm border-b border-black/10 dark:border-white/10">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header Navigation */}
+      <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="flex items-center justify-between px-8 py-6">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-black dark:bg-white"></div>
-            <a href="/" className="text-2xl font-bold tracking-tight">KAWAZU</a>
+            <div className="w-8 h-8 bg-black"></div>
+            <span className="text-2xl font-bold tracking-tight">KAWAZU</span>
           </div>
           
           <nav className="hidden md:flex items-center space-x-8 text-sm font-medium">
-            <a href="/#features" className="hover:opacity-60 transition-opacity">{t('nav.features')}</a>
-            <a href="/#docs" className="hover:opacity-60 transition-opacity">{t('nav.docs')}</a>
-            <a href="/developer" className="hover:opacity-60 transition-opacity">{t('nav.developer')}</a>
+            <Link href="/" className="hover:opacity-60 transition-opacity">HOME</Link>
+            <Link href="#features" className="hover:opacity-60 transition-opacity">FEATURES</Link>
+            <Link href="/pricing" className="text-blue-600 font-semibold">PRICING</Link>
+            <Link href="#docs" className="hover:opacity-60 transition-opacity">DOCS</Link>
+            <Link href="/developer" className="hover:opacity-60 transition-opacity">DEVELOPER</Link>
           </nav>
           
           <div className="flex items-center space-x-4">
-            <a href="/create-profile" className="text-sm hover:opacity-60 transition-opacity">{t('nav.profile')}</a>
-            <LanguageSwitcherDropdown />
+            {isAuthenticated && user ? (
+              <>
+                <span className="text-sm text-gray-600">こんにちは、{user.username}さん</span>
+                <Link href="/dashboard" className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition duration-200">
+                  DASHBOARD
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/auth" className="text-sm hover:opacity-60 transition-opacity">LOGIN</Link>
+                <Link href="/auth" className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition duration-200">
+                  GET STARTED
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="pt-24">
-        {/* Pricing Hero */}
-        <section className="px-8 py-20 text-center">
-          <div className="max-w-3xl mx-auto">
-            <h1 className="text-6xl md:text-8xl font-black leading-none tracking-tighter">
-              Pricing
-            </h1>
-            <p className="mt-4 text-lg font-light max-w-xl mx-auto">
-              Choose the plan that fits your needs. Simple, transparent pricing for teams of all sizes.
-            </p>
-            
-            {/* Billing Cycle Toggle */}
-            <div className="mt-12 inline-flex border border-black dark:border-white p-1">
+      <div className="py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* ヘッダー */}
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl">
+            料金プラン
+          </h1>
+          <p className="mt-4 text-xl text-gray-600">
+            あなたのチームに最適なプランを選択してください
+          </p>
+          {!isAuthenticated && (
+            <div className="mt-6 inline-flex items-center px-4 py-2 rounded-full bg-yellow-100 text-yellow-800">
+              <span className="text-sm">サブスクリプションを開始するには、まず</span>
+              <Link href="/auth" className="ml-1 font-semibold hover:underline">ログイン</Link>
+              <span className="text-sm">が必要です</span>
+            </div>
+          )}
+          {currentSubscription && (
+            <div className="mt-6 inline-flex items-center px-4 py-2 rounded-full bg-green-100 text-green-800">
+              <CheckIcon className="w-5 h-5 mr-2" />
+              現在のプラン: {currentSubscription.subscription_plans.name}
+            </div>
+          )}
+        </div>
+
+        {/* 現在のサブスクリプション管理 */}
+        {currentSubscription && (
+          <div className="mt-8 max-w-md mx-auto">
+            <div className="bg-white rounded-lg shadow p-6 text-center">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                サブスクリプション管理
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                請求情報の確認、プラン変更、キャンセルが可能です
+              </p>
               <button
-                onClick={() => setBillingCycle('monthly')}
-                className={`px-6 py-2 text-sm font-medium transition-all ${
-                  billingCycle === 'monthly'
-                    ? 'bg-black text-white dark:bg-white dark:text-black'
-                    : 'bg-white text-black dark:bg-black dark:text-white'
-                }`}
+                onClick={handleManageSubscription}
+                className="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition duration-200"
               >
-                Monthly
-              </button>
-              <button
-                onClick={() => setBillingCycle('yearly')}
-                className={`relative px-6 py-2 text-sm font-medium transition-all ${
-                  billingCycle === 'yearly'
-                    ? 'bg-black text-white dark:bg-white dark:text-black'
-                    : 'bg-white text-black dark:bg-black dark:text-white'
-                }`}
-              >
-                Yearly
-                <span className="absolute -top-2 -right-2 bg-black text-white dark:bg-white dark:text-black text-xs font-bold px-2 py-0.5 transform rotate-12">
-                  SAVE 20%
-                </span>
+                管理ポータルを開く
               </button>
             </div>
           </div>
-        </section>
+        )}
 
-        {/* Pricing Grid */}
-        <section className="px-8 py-20 border-t border-black/10 dark:border-white/10">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {plans.map((plan) => (
-                <div
-                  key={plan.name}
-                  className={`border ${plan.isPrimary ? 'border-black dark:border-white' : 'border-black/50 dark:border-white/50'} p-8 flex flex-col`}
-                >
-                  <div className="flex-grow">
-                    <h2 className="text-3xl font-bold mb-4">{plan.name}</h2>
-                    <p className="text-lg font-light mb-8 h-12">{plan.description}</p>
-                    <div className="mb-8">
-                      <span className="text-5xl font-black">
-                        {billingCycle === 'monthly' ? plan.price.monthly : plan.price.yearly}
-                      </span>
-                      {plan.name !== 'Enterprise' && (
-                        <span className="text-lg font-light">
-                          {billingCycle === 'monthly' ? ' / month' : ' / year'}
-                        </span>
-                      )}
-                    </div>
-                    <ul className="space-y-4">
-                      {plan.features.map((feature) => (
-                        <li key={feature} className="flex items-center space-x-3 font-light">
-                          <span className="w-4 h-4 border border-current flex-shrink-0 flex items-center justify-center">
-                            <span className="w-1.5 h-px bg-current transform rotate-45"></span>
-                            <span className="w-2.5 h-px bg-current transform -rotate-45 -translate-x-px"></span>
-                          </span>
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
+        {/* 料金プラン */}
+        <div className="mt-16 grid grid-cols-1 gap-8 lg:grid-cols-3">
+          {plans.map((plan) => {
+            const features = getFeatureList(plan.features);
+            const isCurrent = isCurrentPlan(plan.id);
+            const isProcessing = processingPlan === plan.stripe_price_id;
+
+            return (
+              <div
+                key={plan.id}
+                className={`bg-white rounded-lg shadow-lg overflow-hidden ${
+                  plan.name === 'スタンダード' ? 'ring-2 ring-blue-500' : ''
+                }`}
+              >
+                {plan.name === 'スタンダード' && (
+                  <div className="bg-blue-500 text-white text-center py-2 text-sm font-medium">
+                    おすすめ
                   </div>
-                  <div className="mt-12">
-                    <a href="#" className={`block w-full text-center px-6 py-3 text-base font-medium border ${
-                      plan.isPrimary
-                        ? 'bg-black text-white border-black hover:bg-white hover:text-black dark:bg-white dark:text-black dark:border-white dark:hover:bg-black dark:hover:text-white'
-                        : 'bg-white text-black border-black hover:bg-black hover:text-white dark:bg-black dark:text-white dark:border-white dark:hover:bg-white dark:hover:text-black'
-                      } transition-all`}>
-                      {plan.cta}
-                    </a>
+                )}
+                
+                <div className="p-8">
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    {plan.name}
+                  </h3>
+                  
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold text-gray-900">
+                      ¥{plan.amount.toLocaleString()}
+                    </span>
+                    <span className="text-gray-600">/月</span>
+                  </div>
+                  
+                  <div className="mt-2 text-sm text-gray-600">
+                    7日間無料トライアル
+                  </div>
+
+                  <ul className="mt-6 space-y-3">
+                    {features.map((feature, index) => (
+                      <li key={index} className="flex items-start">
+                        <CheckIcon className="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+                        <span className="text-gray-700">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="mt-8">
+                    {isCurrent ? (
+                      <div className="w-full bg-green-100 text-green-800 py-2 px-4 rounded-md text-center font-medium">
+                        現在のプラン
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => isAuthenticated ? handleSubscribe(plan.stripe_price_id) : router.push('/auth')}
+                        disabled={isProcessing || !!currentSubscription}
+                        className={`w-full py-2 px-4 rounded-md font-medium transition duration-200 ${
+                          plan.name === 'スタンダード'
+                            ? 'bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400'
+                            : 'bg-gray-100 text-gray-900 hover:bg-gray-200 disabled:bg-gray-300'
+                        }`}
+                      >
+                        {isProcessing ? (
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            処理中...
+                          </div>
+                        ) : currentSubscription ? (
+                          'プラン変更は管理ポータルから'
+                        ) : !isAuthenticated ? (
+                          'ログインして開始'
+                        ) : (
+                          '開始する'
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
-              ))}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* FAQ */}
+        <div className="mt-20">
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
+            よくある質問
+          </h2>
+          
+          <div className="max-w-3xl mx-auto space-y-8">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                無料トライアルはありますか？
+              </h3>
+              <p className="text-gray-600">
+                はい、すべてのプランで7日間の無料トライアルをご利用いただけます。トライアル期間中はいつでもキャンセル可能で、料金は発生しません。
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                プランの変更は可能ですか？
+              </h3>
+              <p className="text-gray-600">
+                はい、いつでもプランの変更が可能です。管理ポータルからアップグレードやダウングレードができます。
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                キャンセル方法を教えてください
+              </h3>
+              <p className="text-gray-600">
+                管理ポータルからいつでもキャンセルできます。キャンセル後も、現在の請求期間が終了するまでサービスをご利用いただけます。
+              </p>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                支払い方法は何が利用できますか？
+              </h3>
+              <p className="text-gray-600">
+                クレジットカード（Visa、MasterCard、American Express、JCB）での支払いが可能です。
+              </p>
             </div>
           </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="px-8 py-16 border-t border-black/10 dark:border-white/10">
-          <div className="max-w-7xl mx-auto text-center">
-            <p className="text-sm font-light opacity-60">
-              {t('footer.copyright')}
-            </p>
-          </div>
-        </footer>
-      </main>
+        </div>
+      </div>
+      </div>
     </div>
   );
-} 
+};
+
+export default PricingPage;

@@ -1,4 +1,6 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ path: `.env.${process.env.NODE_ENV || 'development'}` });
+
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -68,7 +70,7 @@ const limiter = rateLimit({
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
   delayAfter: 50,
-  delayMs: 500
+  delayMs: () => 500
 });
 
 app.use(limiter);
@@ -86,9 +88,24 @@ app.use(cors({
   credentials: true
 }));
 
+// リクエストログミドルウェア
+app.use((req, res, next) => {
+  console.log(`=== Request Log ===`);
+  console.log(`${req.method} ${req.url}`);
+  console.log('Headers:', req.headers);
+  console.log('Body (before parsing):', req.body);
+  next();
+});
+
 // ボディパーサー設定（サイズ制限付き）
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// ボディパース後ログ
+app.use((req, res, next) => {
+  console.log('Parsed body:', req.body);
+  next();
+});
 
 // セキュリティ監視ミドルウェア
 app.use(securityMonitor);

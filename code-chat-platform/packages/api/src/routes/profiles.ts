@@ -78,74 +78,57 @@ router.get('/:username', validateUsername, async (req: Request, res: Response) =
 
 // プロフィール作成
 router.post('/', validateProfile, async (req: Request, res: Response) => {
+  console.log('---[/api/profiles POST]---');
+  console.log('Received request to create profile. Body:');
+  console.log(JSON.stringify(req.body, null, 2));
+
   try {
-    const {
-      username,
-      display_name,
-      bio,
-      avatar_url,
-      website_url,
-      twitter_handle,
-      github_handle,
-      skills,
-      location,
-      timezone,
-      is_public = true
-    } = req.body;
+    const profileData = req.body;
 
     // ユーザー名重複チェック
     const { data: existingProfile } = await supabase
       .from('user_profiles')
       .select('username')
-      .eq('username', username)
+      .eq('username', profileData.username)
       .single();
 
     if (existingProfile) {
       res.status(409).json({
         success: false,
-        error: 'Username already taken'
+        error: 'Username already taken',
       });
-      return;
+    } else {
+      // プロフィール作成（idは自動生成されるためuuidv4で生成）
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .insert({
+          ...profileData,
+          id: crypto.randomUUID() // UUID v4を生成
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('>>> Supabase Error:', JSON.stringify(error, null, 2));
+        res.status(500).json({
+          success: false,
+          error: 'Failed to create profile',
+          details: error.message,
+        });
+      } else {
+        console.log('Profile created successfully:', profile);
+        res.status(201).json({
+          success: true,
+          data: profile,
+        });
+      }
     }
-
-    // プロフィール作成
-    const { data: profile, error } = await supabase
-      .from('user_profiles')
-      .insert({
-        username,
-        display_name,
-        bio,
-        avatar_url,
-        website_url,
-        twitter_handle,
-        github_handle,
-        skills,
-        location,
-        timezone,
-        is_public
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Create profile error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to create profile'
-      });
-      return;
-    }
-
-    res.status(201).json({
-      success: true,
-      data: profile
-    });
-
-  } catch (error) {
-    console.error('Create profile error:', error);
+  } catch (err: any) {
+    console.error('>>> CATCH BLOCK Error:', err);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: 'Internal server error',
+      details: err.message,
     });
   }
 });
