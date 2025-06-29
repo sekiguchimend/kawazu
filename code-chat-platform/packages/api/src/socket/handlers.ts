@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import DOMPurify from 'isomorphic-dompurify';
 import { supabase } from '../lib/supabase';
+import { checkRoomParticipantLimit } from '../middleware/subscription';
 
 interface JoinRoomData {
   room_slug: string;
@@ -49,7 +50,7 @@ interface SharedFileUpdateData {
 }
 
 // WebSocket認証関数
-const authenticateSocket = (socket: Socket): any | null => {
+const authenticateSocket = async (socket: Socket): Promise<any | null> => {
   try {
     const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
     if (!token) return null;
@@ -57,8 +58,27 @@ const authenticateSocket = (socket: Socket): any | null => {
     const JWT_SECRET = process.env.JWT_SECRET;
     if (!JWT_SECRET) return null;
     
-    return jwt.verify(token, JWT_SECRET);
-  } catch {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    
+    // データベースでユーザー情報を確認
+    const { data: user, error } = await supabase
+      .from('user_profiles')
+      .select('id, username, email, subscription_status')
+      .eq('id', decoded.id)
+      .single();
+
+    if (error || !user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      subscription_status: user.subscription_status
+    };
+  } catch (error) {
+    console.error('Socket authentication error:', error);
     return null;
   }
 };
@@ -82,13 +102,23 @@ const sanitizeInput = (input: any): any => {
 };
 
 export const handleConnection = (io: Server) => {
-  return (socket: Socket) => {
+  return async (socket: Socket) => {
     console.log(`User connected: ${socket.id}`);
     
-    // 接続時の認証チェック（オプション）
-    const authUser = authenticateSocket(socket);
+    // 接続時の認証チェック
+    const authUser = await authenticateSocket(socket);
     if (authUser) {
       socket.data.authUser = authUser;
+      console.log(`Authenticated user connected: ${authUser.username} (${authUser.id})`);
+    } else {
+      console.log(`Unauthenticated user connected: ${socket.id}`);
+      // 認証が必要な場合はエラーを送信
+      socket.emit('error', { 
+        message: 'Authentication required. Please login first.',
+        code: 'AUTH_REQUIRED'
+      });
+      socket.disconnect(true);
+      return;
     }
 
     // ルーム参加処理
@@ -153,12 +183,25 @@ export const handleConnection = (io: Server) => {
           return;
         }
 
+        // 参加者数制限チェック
+        const { count: currentParticipantCount } = await supabase
+          .from('room_participants')
+          .select('*', { count: 'exact', head: true })
+          .eq('room_id', room.id);
+
+        const canJoin = await checkRoomParticipantLimit(room.id, (currentParticipantCount || 0) + 1);
+        
+        if (!canJoin) {
+          socket.emit('error', { message: 'Room is full. Participant limit reached for this room.' });
+          return;
+        }
+
         // 参加者追加
         const { data: participant, error: participantError } = await supabase
           .from('room_participants')
           .insert({
             room_id: room.id,
-            user_id: null,
+            user_id: socket.data.authUser?.id || null,
             username,
             role: 'member'
           })
@@ -255,7 +298,7 @@ export const handleConnection = (io: Server) => {
           .from('messages')
           .insert({
             room_id: socket.data.room_id,
-            user_id: null,
+            user_id: socket.data.authUser?.id || null,
             username,
             content: trimmedContent,
             message_type

@@ -10,49 +10,31 @@ export async function createCodechatFile(
   roomSlug: string, 
   username: string
 ): Promise<void> {
-  const initialContent = `╔═══════════════════════════════════════════════════════════════════════════╗
-║                        💬 Kawazu Chat Room: ${roomSlug.padEnd(25)}    ║
-║                        👤 ユーザー: ${username.padEnd(30)}    ║
-╚═══════════════════════════════════════════════════════════════════════════╝
+  const initialContent = `================================================================================
+ File: ${roomSlug}.codechat
+================================================================================
 
-┌─ 📝 使い方とコマンド ──────────────────────────────────────────────────┐
-│ 💡 メッセージ: 下の入力エリアに書いて保存                                │
-│ 🚀 コード: \`\`\` で囲んでください                                        │
-│ 📂 ファイル共有: #share ファイル名 @ユーザー名 --write                   │
-│ ✅ 承認: #approve <トークン>  ❌ 拒否: #deny <トークン>                  │
-└──────────────────────────────────────────────────────────────────────────┘
+ Room: ${roomSlug}
+ User: ${username}
+ Max Messages: 7 (最新メッセージのみ表示)
 
-╔═ チャット履歴 ═════════════════════════════════════════════════════════════╗
-║                                                                           ║
-║                                                                           ║
-║                          💭 チャットを開始しましょう！                    ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-║                                                                           ║
-╚═══════════════════════════════════════════════════════════════════════════╝
+================================================================================
 
-╔═ メッセージ入力 ═══════════════════════════════════════════════════════════╗
-║                                                                           ║
-║  💬 ここにメッセージを入力してください...                                 ║
-║                                                                           ║
-╚═══════════════════════════════════════════════════════════════════════════╝
+💭 チャットを開始しましょう！
+
+================================================================================
+
+
+------------------------------------------------------------------------------>
+メッセージを上の線上に書き
+
+================================================================================
 `;
   
   await fs.writeFile(filePath, initialContent, 'utf8');
+  
+  // コマンドヘルプファイルを作成
+  await createCommandHelpFile(path.dirname(filePath), roomSlug);
 }
 
 export async function appendMessageToFile(filePath: string, message: string): Promise<void> {
@@ -60,43 +42,83 @@ export async function appendMessageToFile(filePath: string, message: string): Pr
     // ファイルの内容を読み取り
     const currentContent = await fs.readFile(filePath, 'utf8');
     
-    // チャット履歴エリアとメッセージ入力エリアの境界を特定
-    const chatHistoryStart = '╔═ チャット履歴 ═════════════════════════════════════════════════════════════╗';
-    const chatHistoryEnd = '╚═══════════════════════════════════════════════════════════════════════════╝';
-    const inputAreaStart = '╔═ メッセージ入力 ═══════════════════════════════════════════════════════════╗';
+    // 新しい形式の境界を特定
+    const headerEnd = '================================================================================';
+    const inputLineStart = '------------------------------------------------------------------------------>';
     
-    const historyStartIndex = currentContent.indexOf(chatHistoryStart);
-    const historyEndIndex = currentContent.indexOf(chatHistoryEnd, historyStartIndex);
-    const inputAreaIndex = currentContent.indexOf(inputAreaStart, historyEndIndex);
+    const firstHeaderIndex = currentContent.indexOf(headerEnd);
+    const secondHeaderIndex = currentContent.indexOf(headerEnd, firstHeaderIndex + 1);
+    const thirdHeaderIndex = currentContent.indexOf(headerEnd, secondHeaderIndex + 1);
+    const inputLineIndex = currentContent.lastIndexOf(inputLineStart);
     
-    if (historyStartIndex !== -1 && historyEndIndex !== -1 && inputAreaIndex !== -1) {
-      // 現在のチャット履歴を抽出
-      const beforeHistory = currentContent.substring(0, historyStartIndex);
-      const currentHistory = currentContent.substring(historyStartIndex, historyEndIndex + chatHistoryEnd.length);
-      const afterHistory = currentContent.substring(inputAreaIndex);
+    if (firstHeaderIndex !== -1 && secondHeaderIndex !== -1 && thirdHeaderIndex !== -1 && inputLineIndex !== -1) {
+      // ヘッダー部分
+      const headerPart = currentContent.substring(0, secondHeaderIndex + headerEnd.length);
       
-      // 既存のメッセージを抽出（空行や初期メッセージを除外）
-      const existingMessages = extractExistingMessages(currentHistory);
+      // 現在のメッセージ部分
+      const messagePart = currentContent.substring(secondHeaderIndex + headerEnd.length, thirdHeaderIndex);
+      
+      // フッター部分（入力エリア以降）
+      const footerStart = currentContent.substring(thirdHeaderIndex);
+      
+      // 既存のメッセージを抽出
+      const existingMessages = extractMessagesFromContent(messagePart);
       
       // 新しいメッセージを追加
       existingMessages.push(message);
       
-      // メッセージ数を5個に制限
-      const limitedMessages = existingMessages.slice(-5);
+      // メッセージ数を7個に制限
+      const limitedMessages = existingMessages.slice(-7);
       
-      // 新しいチャット履歴を構築
-      const newHistory = buildChatHistory(limitedMessages);
+      // 新しいメッセージ部分を構築
+      const newMessagePart = buildMessageContent(limitedMessages);
       
       // ファイル全体を再構築
-      const newContent = beforeHistory + newHistory + '\n' + afterHistory;
+      const newContent = headerPart + '\n' + newMessagePart + '\n' + footerStart;
       await fs.writeFile(filePath, newContent, 'utf8');
     } else {
-      // フォールバック: 従来通り末尾に追加
-      await fs.appendFile(filePath, message, 'utf8');
+      console.error('ファイル形式が認識できません');
     }
   } catch (error) {
     console.error('ファイル書き込みエラー:', error);
   }
+}
+
+function extractMessagesFromContent(messageSection: string): string[] {
+  const messages: string[] = [];
+  const lines = messageSection.split('\n');
+  
+  let currentMessage = '';
+  let collectingMessage = false;
+  
+  for (const line of lines) {
+    // メッセージの開始を検出（[時刻] で始まる行）
+    if (line.match(/^\[[\d:]+\]/)) {
+      // 前のメッセージを保存
+      if (currentMessage.trim()) {
+        messages.push(currentMessage.trim());
+      }
+      currentMessage = line;
+      collectingMessage = true;
+    } else if (collectingMessage && line.trim() !== '') {
+      // メッセージの続きを追加
+      currentMessage += '\n' + line;
+    } else if (collectingMessage && line.trim() === '') {
+      // 空行でメッセージ終了
+      if (currentMessage.trim()) {
+        messages.push(currentMessage.trim());
+      }
+      currentMessage = '';
+      collectingMessage = false;
+    }
+  }
+  
+  // 最後のメッセージを保存
+  if (currentMessage.trim()) {
+    messages.push(currentMessage.trim());
+  }
+  
+  return messages.filter(msg => msg.length > 0 && !msg.includes('💭 チャットを開始しましょう！'));
 }
 
 function extractExistingMessages(historySection: string): string[] {
@@ -126,6 +148,28 @@ function extractExistingMessages(historySection: string): string[] {
   }
   
   return messages.filter(msg => msg.length > 0 && !msg.includes('💭 チャットを開始しましょう！'));
+}
+
+function buildMessageContent(messages: string[]): string {
+  if (messages.length === 0) {
+    return '💭 チャットを開始しましょう！';
+  }
+  
+  // 7つ以上のメッセージがある場合は、古いメッセージ削除の表示を追加
+  let content = '';
+  if (messages.length >= 7) {
+    content += '▲ 古いメッセージは自動削除されます（7つまで表示）\n\n';
+  }
+  
+  // メッセージを追加
+  for (let i = 0; i < messages.length; i++) {
+    content += messages[i];
+    if (i < messages.length - 1) {
+      content += '\n';
+    }
+  }
+  
+  return content;
 }
 
 function buildChatHistory(messages: string[]): string {
@@ -233,27 +277,89 @@ export async function clearInputArea(filePath: string): Promise<void> {
   try {
     const currentContent = await fs.readFile(filePath, 'utf8');
     
-    // 入力エリアをリセット
-    const inputAreaStart = '╔═ メッセージ入力 ═══════════════════════════════════════════════════════════╗';
-    const inputAreaEnd = '╚═══════════════════════════════════════════════════════════════════════════╝';
+    // 入力線の上の部分をクリア
+    const inputLineStart = '------------------------------------------------------------------------------>';
+    const inputLineIndex = currentContent.lastIndexOf(inputLineStart);
     
-    const startIndex = currentContent.lastIndexOf(inputAreaStart);
-    const endIndex = currentContent.lastIndexOf(inputAreaEnd);
-    
-    if (startIndex !== -1 && endIndex !== -1) {
-      const beforeInput = currentContent.substring(0, startIndex);
-      const afterInput = currentContent.substring(endIndex + inputAreaEnd.length);
+    if (inputLineIndex !== -1) {
+      // 入力線より前の部分を取得
+      const beforeInputLine = currentContent.substring(0, inputLineIndex);
       
-      const cleanInputArea = `╔═ メッセージ入力 ═══════════════════════════════════════════════════════════╗
-║                                                                           ║
-║  💬 ここにメッセージを入力してください...                                 ║
-║                                                                           ║
-╚═══════════════════════════════════════════════════════════════════════════╝`;
+      // 最後の区切り線（================）を見つける
+      const lastSeparator = '================================================================================';
+      const lastSeparatorIndex = beforeInputLine.lastIndexOf(lastSeparator);
       
-      const newContent = beforeInput + cleanInputArea + afterInput;
-      await fs.writeFile(filePath, newContent, 'utf8');
+      if (lastSeparatorIndex !== -1) {
+        const beforeMessages = beforeInputLine.substring(0, lastSeparatorIndex + lastSeparator.length);
+        const inputArea = currentContent.substring(inputLineIndex);
+        
+        // 入力エリアをクリア（空行2つ + 入力線以降）
+        const cleanContent = beforeMessages + '\n\n\n' + inputArea;
+        await fs.writeFile(filePath, cleanContent, 'utf8');
+      }
     }
   } catch (error) {
     console.error('入力エリアクリアエラー:', error);
   }
+}
+
+export async function createCommandHelpFile(
+  dirPath: string, 
+  roomSlug: string
+): Promise<void> {
+  const helpFilePath = path.join(dirPath, `${roomSlug}-commands.kawazu`);
+  
+  const helpContent = `================================================================================
+ Kawazu コマンドリファレンス - ${roomSlug}
+================================================================================
+
+📋 基本操作:
+  • メッセージ送信: .codechatファイルで編集後 Ctrl+S
+  • チャット終了: Ctrl+C
+
+🔧 利用可能なコマンド:
+
+📁 ファイル共有:
+  kawazu share /path/to/file.js
+  └─ ファイルを他の参加者と共有（承認が必要）
+
+👤 ユーザー情報:
+  kawazu profile ユーザー名
+  └─ 指定ユーザーのプロフィールを表示
+
+🏠 ルーム操作:
+  kawazu list
+  └─ 参加可能なルーム一覧を表示
+  
+  kawazu create "新しいルーム名"
+  └─ 新しいルームを作成
+
+🔐 認証・プラン:
+  kawazu login
+  └─ Webアプリアカウントでログイン
+  
+  kawazu logout
+  └─ ログアウト
+  
+  kawazu whoami
+  └─ 現在のユーザー情報を表示
+  
+  kawazu plan
+  └─ サブスクリプションプラン情報を確認
+
+💬 メッセージ形式:
+  • プレーンテキスト
+  • コードブロック: \`\`\`言語名 で開始
+  • 絵文字対応
+
+📊 制限事項:
+  • メッセージ履歴: 7つまで（古いものは自動削除）
+  • ファイル共有: プランに応じた容量制限
+  • ルーム作成数: プランに応じた制限
+
+================================================================================
+`;
+
+  await fs.writeFile(helpFilePath, helpContent, 'utf8');
+  console.log(`📖 コマンドヘルプファイルを作成しました: ${roomSlug}-commands.kawazu`);
 }

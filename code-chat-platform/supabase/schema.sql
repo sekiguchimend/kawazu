@@ -35,16 +35,48 @@ CREATE TABLE room_participants (
   UNIQUE(room_id, user_id)
 );
 
+-- ユーザープロフィールテーブル
+CREATE TABLE user_profiles (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  username VARCHAR(100) UNIQUE NOT NULL,
+  display_name VARCHAR(100),
+  bio TEXT,
+  avatar_url VARCHAR(500),
+  website_url VARCHAR(500),
+  twitter_handle VARCHAR(100),
+  github_handle VARCHAR(100),
+  skills TEXT[],
+  location VARCHAR(100),
+  timezone VARCHAR(50),
+  is_public BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- プロフィール閲覧ログテーブル
+CREATE TABLE profile_views (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  viewer_username VARCHAR(100),
+  viewed_username VARCHAR(100) NOT NULL REFERENCES user_profiles(username),
+  viewed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- インデックス作成
 CREATE INDEX idx_messages_room_id ON messages(room_id);
 CREATE INDEX idx_messages_created_at ON messages(created_at);
 CREATE INDEX idx_room_participants_room_id ON room_participants(room_id);
 CREATE INDEX idx_rooms_slug ON rooms(slug);
+CREATE INDEX idx_user_profiles_username ON user_profiles(username);
+CREATE INDEX idx_user_profiles_is_public ON user_profiles(is_public);
+CREATE INDEX idx_profile_views_viewed_username ON profile_views(viewed_username);
+CREATE INDEX idx_profile_views_viewer_username ON profile_views(viewer_username);
 
 -- RLS (Row Level Security) の設定
 ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE room_participants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profile_views ENABLE ROW LEVEL SECURITY;
 
 -- ポリシーの設定
 -- ルームは誰でも読み取り可能（パブリックルームの場合）
@@ -95,6 +127,32 @@ CREATE POLICY "Participants are readable by room participants" ON room_participa
     )
   );
 
+-- ユーザープロフィールポリシー
+-- パブリックプロフィールは誰でも読み取り可能
+CREATE POLICY "Public profiles are readable by everyone" ON user_profiles
+  FOR SELECT USING (is_public = true);
+
+-- プライベートプロフィールは本人のみ読み取り可能
+CREATE POLICY "Private profiles are readable by owner" ON user_profiles
+  FOR SELECT USING (
+    is_public = false AND 
+    username = current_setting('app.current_username', true)
+  );
+
+-- プロフィール作成・更新は本人のみ可能
+CREATE POLICY "Users can manage their own profiles" ON user_profiles
+  FOR ALL USING (username = current_setting('app.current_username', true));
+
+-- プロフィール閲覧ログポリシー
+CREATE POLICY "Profile views are readable by involved users" ON profile_views
+  FOR SELECT USING (
+    viewer_username = current_setting('app.current_username', true) OR
+    viewed_username = current_setting('app.current_username', true)
+  );
+
+CREATE POLICY "Users can log profile views" ON profile_views
+  FOR INSERT WITH CHECK (true);
+
 -- updated_at 自動更新のトリガー関数
 CREATE OR REPLACE FUNCTION trigger_set_timestamp()
 RETURNS TRIGGER AS $$
@@ -104,9 +162,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- rooms テーブルに updated_at 自動更新トリガーを追加
+-- テーブルに updated_at 自動更新トリガーを追加
 CREATE TRIGGER set_timestamp
   BEFORE UPDATE ON rooms
+  FOR EACH ROW
+  EXECUTE PROCEDURE trigger_set_timestamp();
+
+CREATE TRIGGER set_user_profiles_timestamp
+  BEFORE UPDATE ON user_profiles
   FOR EACH ROW
   EXECUTE PROCEDURE trigger_set_timestamp();
 

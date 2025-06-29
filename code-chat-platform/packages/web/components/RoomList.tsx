@@ -1,41 +1,41 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { getRoom } from '@/lib/api';
+import { getRooms, getRoom } from '@/lib/api';
 import { Room } from '@/types';
 
 export function RoomList() {
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchSlug, setSearchSlug] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  // サンプルルームデータ（実際の実装では API から取得）
-  const sampleRooms: Room[] = useMemo(() => [
-    {
-      id: '1',
-      name: 'プロジェクト会議',
-      slug: 'project-meeting',
-      is_private: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      participant_count: 3
-    },
-    {
-      id: '2',
-      name: 'コードレビュー',
-      slug: 'code-review',
-      is_private: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      participant_count: 2
+  // 実際のAPIからパブリックルーム一覧を取得
+  const fetchRooms = async () => {
+    try {
+      setIsLoading(true);
+      const result = await getRooms();
+      
+      if (result.success && result.data) {
+        setRooms(result.data);
+      } else {
+        console.error('Failed to fetch rooms:', result.error);
+        // フォールバック：エラー時は空配列
+        setRooms([]);
+      }
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+      // エラー時は空配列
+      setRooms([]);
+    } finally {
+      setIsLoading(false);
     }
-  ], []);
+  };
 
   useEffect(() => {
-    // 実際の実装ではAPIからパブリックルーム一覧を取得
-    setRooms(sampleRooms);
-  }, [sampleRooms]);
+    fetchRooms();
+  }, []);
 
   const handleSearchRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +45,7 @@ export function RoomList() {
       return;
     }
     
-    setIsLoading(true);
+    setSearchLoading(true);
     
     try {
       const result = await getRoom(searchSlug);
@@ -56,7 +56,10 @@ export function RoomList() {
         // 検索したルームを一覧に追加（重複チェック）
         setRooms(prev => {
           const exists = prev.find(r => r.id === room.id);
-          if (exists) return prev;
+          if (exists) {
+            toast('このルームは既に一覧にあります', { icon: 'ℹ️' });
+            return prev;
+          }
           return [room, ...prev];
         });
         
@@ -69,7 +72,7 @@ export function RoomList() {
       console.error('Search room error:', error);
       toast.error('検索中にエラーが発生しました');
     } finally {
-      setIsLoading(false);
+      setSearchLoading(false);
     }
   };
 
@@ -95,6 +98,11 @@ export function RoomList() {
     });
   };
 
+  const refreshRooms = async () => {
+    await fetchRooms();
+    toast.success('ルーム一覧を更新しました');
+  };
+
   return (
     <div className="space-y-6">
       {/* ルーム検索 */}
@@ -109,25 +117,39 @@ export function RoomList() {
             onChange={(e) => setSearchSlug(e.target.value)}
             placeholder="ルームIDを入力"
             className="input-field flex-1"
-            disabled={isLoading}
+            disabled={searchLoading}
           />
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={searchLoading}
             className="btn-primary disabled:opacity-50"
           >
-            {isLoading ? '検索中...' : '検索'}
+            {searchLoading ? '検索中...' : '検索'}
           </button>
         </form>
       </div>
 
       {/* ルーム一覧 */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">
-          利用可能なルーム
-        </h3>
+        <div className="flex justify-between items-center mb-3">
+          <h3 className="text-lg font-semibold text-gray-900">
+            利用可能なルーム
+          </h3>
+          <button
+            onClick={refreshRooms}
+            disabled={isLoading}
+            className="btn-secondary text-sm disabled:opacity-50"
+          >
+            {isLoading ? '読み込み中...' : '🔄 更新'}
+          </button>
+        </div>
         
-        {rooms.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="text-gray-500 mt-2">ルーム一覧を読み込み中...</p>
+          </div>
+        ) : rooms.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <p>表示できるルームがありません</p>
             <p className="text-sm mt-1">ルームIDで検索するか、新しいルームを作成してください</p>
@@ -188,8 +210,9 @@ export function RoomList() {
         <h4 className="font-semibold text-blue-900 mb-2">参加方法</h4>
         <ol className="text-sm text-blue-800 space-y-1">
           <li>1. CLI ツールをインストール: <code className="bg-blue-100 px-1 rounded">npm install -g kawazu</code></li>
-          <li>2. ルームに参加: <code className="bg-blue-100 px-1 rounded">kawazu join [room-id]</code></li>
-          <li>3. エディタで .codechat ファイルを開いてチャット開始</li>
+          <li>2. ログイン: <code className="bg-blue-100 px-1 rounded">kawazu login</code></li>
+          <li>3. ルームに参加: <code className="bg-blue-100 px-1 rounded">kawazu join [room-id]</code></li>
+          <li>4. エディタで .codechat ファイルを開いてチャット開始</li>
         </ol>
       </div>
     </div>

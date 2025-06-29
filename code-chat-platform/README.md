@@ -4,7 +4,7 @@
 
 ## 🚀 プロジェクト概要
 
-Code Chatは、開発者向けのリアルタイムチャットサービスです。Webでルームを作成し、CLIツールを使ってエディタ上でチャットできます。
+Kawazuは、開発者向けのリアルタイムチャットサービスです。Webでルームを作成し、CLIツールを使ってエディタ上でチャットできます。
 
 ### システム構成
 - **Web UI**: Next.js (TypeScript) - ルーム管理
@@ -87,7 +87,7 @@ cd packages/cli
 npm run build
 
 # ルームに参加
-npx . join room-name
+npx kawazu join room-name
 ```
 
 ### 3. エディタでチャット

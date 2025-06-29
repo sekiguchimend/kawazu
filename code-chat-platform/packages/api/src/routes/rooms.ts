@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { validateRoom, validateJoinRoom, validateSlug } from '../middleware/validation';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { roomCreationLimiter } from '../middleware/security';
+import { checkRoomCreationLimit } from '../middleware/subscription';
 
 const router = Router();
 
@@ -62,7 +63,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // ルーム作成
-router.post('/', roomCreationLimiter, authenticateToken, validateRoom, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/', roomCreationLimiter, authenticateToken, checkRoomCreationLimit, validateRoom, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { name, slug, is_private, password } = req.body;
 

@@ -17,34 +17,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white">
-      {/* Header Navigation */}
-      <header className="fixed top-0 w-full z-50 bg-white/90 dark:bg-black/90 backdrop-blur-sm border-b border-black/10 dark:border-white/10">
-        <div className="flex items-center justify-between px-8 py-6">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-black dark:bg-white"></div>
-            <span className="text-2xl font-bold tracking-tight">KAWAZU</span>
-          </div>
-          
-          <nav className="hidden md:flex items-center space-x-8 text-sm font-medium">
-            <Link href="#features" className="hover:opacity-60 transition-opacity">{t('nav.features')}</Link>
-            <Link href="/pricing" className="hover:opacity-60 transition-opacity">Pricing</Link>
-            <Link href="#docs" className="hover:opacity-60 transition-opacity">{t('nav.docs')}</Link>
-            <Link href="#support" className="hover:opacity-60 transition-opacity">{t('nav.support')}</Link>
-            <Link href="/developer" className="hover:opacity-60 transition-opacity">{t('nav.developer')}</Link>
-          </nav>
-          
-          <div className="flex items-center space-x-4">
-            <Link href="/auth" className="text-sm hover:opacity-60 transition-opacity">Login</Link>
-            <LanguageSwitcherDropdown />
-            <div className="w-6 h-6 border border-black dark:border-white flex items-center justify-center cursor-pointer hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all">
-              <span className="text-xs">◐</span>
-            </div>
-          </div>
-        </div>
-      </header>
-      
       {/* Main Content */}
-      <main className="pt-24">
+      <main>
         {/* Large Typography Hero */}
         <section className="px-8 py-20">
           <div className="max-w-7xl mx-auto">
@@ -52,7 +26,7 @@ export default function HomePage() {
               
               {/* Left Column - Typography */}
               <div className="lg:col-span-7 space-y-8">
-                <div className="space-y-6">
+          <div className="space-y-6">
                   <h1 className="text-7xl md:text-9xl font-black leading-none tracking-tighter">
                     {t('hero.title')}
                     <br />
@@ -126,8 +100,8 @@ export default function HomePage() {
                     <div className="space-y-2">
                       <div className="opacity-60">{t('terminal.join')}</div>
                       <div>$ kawazu join my-project</div>
-                    </div>
-                    
+            </div>
+            
                     <div className="space-y-2">
                       <div className="opacity-60">{t('terminal.start')}</div>
                       <div>{t('terminal.connected')}</div>
@@ -159,15 +133,15 @@ export default function HomePage() {
                 
                 <div className="border border-black dark:border-white p-8">
                   <CreateRoomForm onRoomCreated={handleRoomCreated} />
-                </div>
-              </div>
-              
+            </div>
+          </div>
+          
               {/* Join Room */}
               <div className="space-y-8">
                 <div className="space-y-4">
                   <div className="flex items-center space-x-4">
                     <div className="w-px h-16 bg-black dark:bg-white"></div>
-                    <div>
+          <div>
                       <h2 className="text-3xl font-bold">{t('rooms.join.title')}</h2>
                       <p className="text-lg font-light">{t('rooms.join.subtitle')}</p>
                     </div>
@@ -175,7 +149,7 @@ export default function HomePage() {
                 </div>
                 
                 <div className="border border-black dark:border-white p-8">
-                  <RoomList key={refreshKey} />
+              <RoomList key={refreshKey} />
                 </div>
               </div>
             </div>
@@ -199,7 +173,7 @@ export default function HomePage() {
               <div className="space-y-2">
                 <div className="text-4xl font-black">∞</div>
                 <div className="text-sm font-light uppercase tracking-wider">{t('stats.rooms')}</div>
-              </div>
+        </div>
               
               <div className="space-y-2">
                 <div className="text-4xl font-black">24/7</div>
@@ -208,7 +182,7 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-
+      
         {/* Footer */}
         <footer className="px-8 py-16 border-t border-black/10 dark:border-white/10">
           <div className="max-w-7xl mx-auto">
@@ -248,9 +222,9 @@ export default function HomePage() {
               <p className="text-sm font-light opacity-60">
                 {t('footer.copyright')}
               </p>
-            </div>
           </div>
-        </footer>
+        </div>
+      </footer>
       </main>
     </div>
   );

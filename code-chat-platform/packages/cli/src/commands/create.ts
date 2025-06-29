@@ -1,16 +1,19 @@
 import chalk from 'chalk';
 import ora from 'ora';
 import inquirer from 'inquirer';
+import fetch from 'node-fetch';
 import { CreateOptions } from '../types';
-import { loadConfig } from '../utils/config';
+import { requireAuth, loadConfig } from '../utils/config';
 import { joinRoom } from './join';
 
 export async function createRoom(roomName: string, options: CreateOptions) {
+  // 認証チェック
+  console.log(chalk.blue('🔍 認証状態を確認中...'));
+  let config = await requireAuth();
+
   const spinner = ora('ルームを作成中...').start();
-  let config;
   
   try {
-    config = await loadConfig();
     
     // ルームスラッグの生成（ルーム名から自動生成）
     const slug = generateSlug(roomName);
@@ -39,16 +42,17 @@ export async function createRoom(roomName: string, options: CreateOptions) {
       password: password
     };
     
-    // API リクエスト
+    // API リクエスト（認証トークン付き）
     const response = await fetch(`${config.server_url}/api/rooms`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.auth_token}`
       },
       body: JSON.stringify(roomData)
     });
     
-    const result = await response.json();
+    const result = await response.json() as any;
     
     if (!response.ok || !result.success) {
       spinner.fail('ルーム作成に失敗しました');
@@ -95,8 +99,8 @@ export async function createRoom(roomName: string, options: CreateOptions) {
     if (autoJoin) {
       console.log(chalk.yellow('\n🚀 ルームに参加しています...\n'));
       
-      // ユーザー名の取得
-      const username = await promptUsername();
+      // ユーザー名の取得（認証済みユーザー名を優先）
+      const username = config.user_username || await promptUsername();
       
       // 作成したルームに参加
       await joinRoom(result.data.slug, { 

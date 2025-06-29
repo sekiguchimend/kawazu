@@ -16,7 +16,45 @@ const program = new Command();
 program
   .name('kawazu')
   .description('エディタ上でリアルタイムチャットを行うCLIツール')
-  .version('1.0.0');
+  .version('1.1.1');
+
+// ログインコマンド
+program
+  .command('login')
+  .description('アカウントにログインする')
+  .option('-e, --email <email>', 'メールアドレス')
+  .option('-p, --password <password>', 'パスワード')
+  .action(async (options) => {
+    const { loginUser } = await import('./commands/auth');
+    await loginUser(options);
+  });
+
+// ログアウトコマンド
+program
+  .command('logout')
+  .description('ログアウトする')
+  .action(async () => {
+    const { logoutUser } = await import('./commands/auth');
+    await logoutUser();
+  });
+
+// アカウント状態確認コマンド
+program
+  .command('whoami')
+  .description('現在ログイン中のユーザー情報を表示')
+  .action(async () => {
+    const { showCurrentUser } = await import('./commands/auth');
+    await showCurrentUser();
+  });
+
+// プラン確認コマンド
+program
+  .command('plan')
+  .description('現在のサブスクリプションプランを表示')
+  .action(async () => {
+    const { showSubscriptionPlan } = await import('./commands/auth');
+    await showSubscriptionPlan();
+  });
 
 // ルーム参加コマンド
 program
@@ -144,11 +182,22 @@ program
   .action(() => {
     console.log(chalk.blue.bold('\n📖 Kawazu CLI - 使用方法\n'));
     
+    console.log(chalk.yellow('🔐 初回セットアップ:'));
+    console.log('  1. ログイン: ' + chalk.cyan('kawazu login'));
+    console.log('  2. プラン確認: ' + chalk.cyan('kawazu plan'));
+    console.log('  3. 設定確認: ' + chalk.cyan('kawazu config --show\n'));
+    
     console.log(chalk.yellow('🚀 基本的な使い方:'));
     console.log('  1. ルームを作成: ' + chalk.cyan('kawazu create "プロジェクト会議"'));
     console.log('  2. ルームに参加: ' + chalk.cyan('kawazu join project-meeting'));
     console.log('  3. エディタで .codechat ファイルを開く');
     console.log('  4. ファイルに書き込んでチャット開始！\n');
+    
+    console.log(chalk.yellow('👤 アカウント管理:'));
+    console.log('  • ログイン: ' + chalk.cyan('kawazu login'));
+    console.log('  • ログアウト: ' + chalk.cyan('kawazu logout'));
+    console.log('  • ユーザー確認: ' + chalk.cyan('kawazu whoami'));
+    console.log('  • プラン確認: ' + chalk.cyan('kawazu plan\n'));
     
     console.log(chalk.yellow('💡 便利なオプション:'));
     console.log('  • ユーザー名指定: ' + chalk.cyan('kawazu join room-id -u username'));
@@ -168,7 +217,7 @@ program
     
     console.log(chalk.yellow('🔧 初回設定:'));
     console.log('  設定を行う: ' + chalk.cyan('kawazu config'));
-    console.log('  サーバーURL設定: ' + chalk.cyan('kawazu config --server http://localhost:8000\n'));
+    console.log('  サーバーURL設定: ' + chalk.cyan('kawazu config --server https://kawazu-app.com\n'));
     
     console.log(chalk.yellow('📝 チャットファイルの使い方:'));
     console.log('  • # で始まる行はシステムメッセージ（送信されません）');
@@ -190,6 +239,7 @@ program.on('command:*', () => {
 if (process.argv.length === 2) {
   program.outputHelp();
   console.log(chalk.blue('\n💡 詳細な使用方法: ') + chalk.cyan('kawazu help-usage'));
+  console.log(chalk.yellow('\n🔐 初回利用の場合: ') + chalk.cyan('kawazu login'));
 }
 
 // プログラム実行

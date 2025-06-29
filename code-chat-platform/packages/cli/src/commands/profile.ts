@@ -1,38 +1,39 @@
 import chalk from 'chalk';
+import fetch from 'node-fetch';
 import { loadConfig } from '../utils/config';
 
 export async function showProfile(username: string) {
   try {
     const config = await loadConfig();
     
-    console.log(chalk.blue(`👤 ${username} のプロフィールを取得中...`));
+    console.log(chalk.blue(` ${username} のプロフィールを取得中...`));
     
     // API リクエスト
     const response = await fetch(`${config.server_url}/api/profiles/${username}/url`);
-    const result = await response.json();
+    const result = await response.json() as any;
     
     if (!response.ok || !result.success) {
-      console.error(chalk.red(`❌ ${result.error || 'プロフィールが見つかりません'}`));
+      console.error(chalk.red(` ${result.error || 'プロフィールが見つかりません'}`));
       return;
     }
     
     const { url, is_public } = result.data;
     
-    console.log(chalk.green('\n✅ プロフィールが見つかりました！'));
-    console.log(`👤 ユーザー: ${chalk.cyan(username)}`);
-    console.log(`🔗 URL: ${chalk.blue(url)}`);
+    console.log(chalk.green('\n プロフィールが見つかりました！'));
+    console.log(` ユーザー: ${chalk.cyan(username)}`);
+    console.log(` URL: ${chalk.blue(url)}`);
     
     if (!is_public) {
-      console.log(chalk.yellow('⚠️  このプロフィールはプライベート設定です'));
+      console.log(chalk.yellow(' このプロフィールはプライベート設定です'));
     }
     
-    console.log(chalk.gray('\n💡 上記URLをブラウザで開いてプロフィールを確認できます'));
+    console.log(chalk.gray('\n 上記URLをブラウザで開いてプロフィールを確認できます'));
     
   } catch (error) {
-    console.error(chalk.red(`❌ エラーが発生しました: ${error.message}`));
+    console.error(chalk.red(` エラーが発生しました: ${error.message}`));
     
     if (error.code === 'ECONNREFUSED') {
-      console.log(chalk.yellow('💡 APIサーバーが起動していない可能性があります'));
+      console.log(chalk.yellow(' APIサーバーが起動していない可能性があります'));
     }
   }
 }
@@ -43,10 +44,10 @@ export async function openProfile(username: string) {
     
     // プロフィールURL取得
     const response = await fetch(`${config.server_url}/api/profiles/${username}/url`);
-    const result = await response.json();
+    const result = await response.json() as any;
     
     if (!response.ok || !result.success) {
-      console.error(chalk.red(`❌ ${result.error || 'プロフィールが見つかりません'}`));
+      console.error(chalk.red(` ${result.error || 'プロフィールが見つかりません'}`));
       return;
     }
     
@@ -70,7 +71,7 @@ export async function openProfile(username: string) {
       args = [url];
     }
     
-    console.log(chalk.blue(`🌐 ブラウザで ${username} のプロフィールを開いています...`));
+    console.log(chalk.blue(` ブラウザで ${username} のプロフィールを開いています...`));
     console.log(chalk.gray(`URL: ${url}`));
     
     const child = spawn(command, args, { 
@@ -81,8 +82,8 @@ export async function openProfile(username: string) {
     child.unref();
     
   } catch (error) {
-    console.error(chalk.red(`❌ ブラウザを開けませんでした: ${error.message}`));
-    console.log(chalk.yellow('💡 手動でブラウザを開いて以下のURLにアクセスしてください:'));
+    console.error(chalk.red(` ブラウザを開けませんでした: ${error.message}`));
+    console.log(chalk.yellow(' 手動でブラウザを開いて以下のURLにアクセスしてください:'));
     
     // フォールバック: URL表示
     await showProfile(username);

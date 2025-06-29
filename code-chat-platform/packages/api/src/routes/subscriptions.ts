@@ -18,72 +18,102 @@ const router = Router();
 // サブスクリプションプラン一覧取得
 router.get('/plans', async (req: Request, res: Response) => {
   try {
+    console.log('🔍 Getting subscription plans...');
+    
     const { data: plans, error } = await supabase
       .from('subscription_plans')
       .select('*')
       .eq('is_active', true)
       .order('amount', { ascending: true });
 
+    console.log('📋 Subscription plans query result:', { 
+      plans: plans?.length || 0, 
+      error: error?.message || 'none' 
+    });
+
     if (error) {
-      console.error('Get subscription plans error:', error);
+      console.error('❌ Get subscription plans error:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to get subscription plans'
+        error: 'Failed to get subscription plans',
+        details: error.message
       });
       return;
     }
 
+    console.log('✅ Subscription plans retrieved successfully:', plans?.length || 0);
     res.json({
       success: true,
-      data: plans
+      data: plans || []
     });
 
   } catch (error) {
-    console.error('Get subscription plans error:', error);
+    console.error('💥 Get subscription plans catch error:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
 
-// ユーザーの現在のサブスクリプション取得
+// 現在のサブスクリプション取得
 router.get('/current', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;
+    console.log(`🔍 Getting current subscription for user: ${userId}`);
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: 'User not authenticated'
+      });
+      return;
+    }
 
     const { data: subscription, error } = await supabase
       .from('user_subscriptions')
       .select(`
         *,
         subscription_plans (
+          id,
           name,
           amount,
+          currency,
           features
         )
       `)
       .eq('user_id', userId)
       .single();
 
+    console.log('📋 Current subscription query result:', { 
+      found: !!subscription, 
+      error: error?.message || 'none',
+      errorCode: error?.code
+    });
+
     if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-      console.error('Get current subscription error:', error);
+      console.error('❌ Get current subscription error:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to get subscription'
+        error: 'Failed to get subscription',
+        details: error.message
       });
       return;
     }
 
+    console.log('✅ Current subscription retrieved:', subscription ? 'found' : 'none');
     res.json({
       success: true,
-      data: subscription || null
+      data: subscription
     });
 
   } catch (error) {
-    console.error('Get current subscription error:', error);
+    console.error('💥 Get current subscription catch error:', error);
     res.status(500).json({
       success: false,
-      error: 'Internal server error'
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
@@ -176,7 +206,7 @@ router.post('/checkout', authenticateToken, async (req: AuthenticatedRequest, re
   }
 });
 
-// Customer Portal セッション作成
+// カスタマーポータル作成
 router.post('/portal', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;
@@ -188,7 +218,7 @@ router.post('/portal', authenticateToken, async (req: AuthenticatedRequest, res:
       .eq('user_id', userId)
       .single();
 
-    if (error || !subscription) {
+    if (error || !subscription?.stripe_customer_id) {
       res.status(404).json({
         success: false,
         error: 'No subscription found'
@@ -196,22 +226,27 @@ router.post('/portal', authenticateToken, async (req: AuthenticatedRequest, res:
       return;
     }
 
-    // Customer Portal Session作成
+    // カスタマーポータルセッション作成
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    const session = await createCustomerPortalSession(
+    const portalSession = await createCustomerPortalSession(
       subscription.stripe_customer_id,
       `${frontendUrl}/dashboard`
     );
 
+    logSecurityEvent('customer_portal_accessed', {
+      userId,
+      customerId: subscription.stripe_customer_id
+    }, req, 'low');
+
     res.json({
       success: true,
       data: {
-        portal_url: session.url
+        portal_url: portalSession.url
       }
     });
 
   } catch (error) {
-    console.error('Create customer portal session error:', error);
+    console.error('Create customer portal error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to create customer portal session'
@@ -324,7 +359,7 @@ router.post('/resume', authenticateToken, async (req: AuthenticatedRequest, res:
     if (!subscription.cancel_at_period_end) {
       res.status(400).json({
         success: false,
-        error: 'Subscription is not scheduled for cancellation'
+        error: 'Subscription is not set to cancel'
       });
       return;
     }
@@ -357,20 +392,20 @@ router.post('/resume', authenticateToken, async (req: AuthenticatedRequest, res:
         user_id: userId,
         subscription_id: subscription.id,
         plan_id: subscription.plan_id,
-        action: 'reactivated',
+        action: 'resumed',
         metadata: { 
-          reactivated_by: 'user' 
+          resumed_by: 'user'
         }
       });
 
-    logSecurityEvent('subscription_reactivated', {
+    logSecurityEvent('subscription_resumed', {
       userId,
       subscriptionId: subscription.id
     }, req, 'low');
 
     res.json({
       success: true,
-      message: 'Subscription has been reactivated'
+      message: 'Subscription has been resumed'
     });
 
   } catch (error) {
@@ -382,20 +417,60 @@ router.post('/resume', authenticateToken, async (req: AuthenticatedRequest, res:
   }
 });
 
-// テスト用のサブスクリプション完了エンドポイント（開発環境のみ）
-router.post('/test/complete', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  // 開発環境でのみ有効
-  if (process.env.NODE_ENV !== 'development') {
-    res.status(404).json({
-      success: false,
-      error: 'Not found'
-    });
-    return;
-  }
-
+// サブスクリプション履歴取得
+router.get('/history', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;
-    const userEmail = req.user?.email;
+
+    const { data: history, error } = await supabase
+      .from('subscription_history')
+      .select(`
+        *,
+        subscription_plans (
+          name,
+          amount,
+          currency
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Get subscription history error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get subscription history'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: history
+    });
+
+  } catch (error) {
+    console.error('Get subscription history error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// テスト用サブスクリプション完了処理
+router.post('/test/complete', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (process.env.NODE_ENV !== 'development') {
+      res.status(403).json({
+        success: false,
+        error: 'Test endpoint only available in development'
+      });
+      return;
+    }
+
+    const userId = req.user?.id;
     const { session_id, price_id } = req.body;
 
     if (!session_id || !price_id) {
@@ -406,32 +481,32 @@ router.post('/test/complete', authenticateToken, async (req: AuthenticatedReques
       return;
     }
 
+    console.log('Processing test subscription completion:', { userId, session_id, price_id });
+
     // プラン情報取得
     const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
       .select('*')
       .eq('stripe_price_id', price_id)
-      .eq('is_active', true)
       .single();
 
     if (planError || !plan) {
       res.status(404).json({
         success: false,
-        error: 'Invalid subscription plan'
+        error: 'Plan not found'
       });
       return;
     }
 
-    // テスト用の顧客ID・サブスクリプションIDを生成
-    const testCustomerId = `cus_test_${Math.random().toString(36).substr(2, 9)}`;
-    const testSubscriptionId = `sub_test_${Math.random().toString(36).substr(2, 9)}`;
-
-    // 既存のサブスクリプションを確認
+    // 既存のサブスクリプション確認
     const { data: existingSubscription } = await supabase
       .from('user_subscriptions')
       .select('*')
       .eq('user_id', userId)
       .single();
+
+    const testCustomerId = `cus_test_${userId}`;
+    const testSubscriptionId = `sub_test_${Math.random().toString(36).substr(2, 9)}`;
 
     if (existingSubscription) {
       // 既存サブスクリプションを更新
@@ -494,15 +569,11 @@ router.post('/test/complete', authenticateToken, async (req: AuthenticatedReques
         }
       });
 
-    logSecurityEvent('subscription_test_completed', {
-      userId,
-      planId: plan.id,
-      sessionId: session_id
-    }, req, 'low');
+    console.log('Test subscription completed successfully');
 
     res.json({
       success: true,
-      message: 'Test subscription activated successfully'
+      message: 'Test subscription completed'
     });
 
   } catch (error) {

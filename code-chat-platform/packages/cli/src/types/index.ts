@@ -18,6 +18,10 @@ export interface Config {
   default_username?: string;
   auto_open_editor?: boolean;
   editor_command?: string;
+  auth_token?: string;
+  user_email?: string;
+  user_username?: string;
+  user_id?: string;
 }
 
 export interface MessageData {

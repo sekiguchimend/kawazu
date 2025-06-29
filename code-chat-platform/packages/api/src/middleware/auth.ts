@@ -16,6 +16,7 @@ export interface AuthenticatedRequest extends Request {
     email: string;
     role: string;
   };
+  planLimits?: any;
 }
 
 // JWT生成

@@ -1,8 +1,72 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../lib/supabase';
 import { validateProfile, validateUsername } from '../middleware/validation';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 
 const router = Router();
+
+// 現在のユーザーのプロフィール取得
+router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: 'User not authenticated'
+      });
+      return;
+    }
+
+    // まずauth.usersテーブルからユーザー情報を取得
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId);
+    
+    if (authError || !authUser.user) {
+      console.error('Get auth user error:', authError);
+      res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+      return;
+    }
+
+    // 次にuser_profilesテーブルからプロフィール情報を取得
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (profileError && profileError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('Get profile error:', profileError);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get profile'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: authUser.user.id,
+          email: authUser.user.email,
+          username: req.user?.username || authUser.user.user_metadata?.username,
+          role: req.user?.role || 'user'
+        },
+        profile: profile || null
+      }
+    });
+
+  } catch (error) {
+    console.error('Get current user error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
 
 // プロフィール取得
 router.get('/:username', validateUsername, async (req: Request, res: Response) => {

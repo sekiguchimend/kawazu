@@ -48,7 +48,7 @@ const AuthPage = () => {
           throw new Error(errorMessages);
         } else {
           throw new Error(data.error || `HTTP error! status: ${response.status}`);
-        }
+      }
       }
 
       if (data.success) {

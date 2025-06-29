@@ -126,11 +126,11 @@ npm run build
 ```bash
 # 開発版CLIを使用
 cd packages/cli
-npx . join room-name
+npx kawazu join room-name
 
 # または global リンク作成
 npm link
-code-chat join room-name
+kawazu join room-name
 ```
 
 ### 5.3 NPMパッケージとして公開
@@ -146,9 +146,9 @@ npm login
 `packages/cli/package.json` の `name` を一意な名前に変更:
 ```json
 {
-  "name": "@your-username/code-chat-cli",
+  "name": "@your-username/kawazu",
   // または
-  "name": "code-chat-cli-unique-name",
+  "name": "kawazu-cli-unique-name",
 }
 ```
 
@@ -165,10 +165,10 @@ npm publish --access public
 ### 5.4 公開されたCLIのインストール
 ```bash
 # 公開後、誰でもインストール可能
-npm install -g @your-username/code-chat-cli
+npm install -g @your-username/kawazu
 
 # 使用
-code-chat join room-name
+kawazu join room-name
 ```
 
 ---
@@ -187,13 +187,13 @@ code-chat join room-name
 ### 6.2 CLIでルーム参加
 ```bash
 # パブリックルーム
-code-chat join my-room
+kawazu join my-room
 
 # ユーザー名指定
-code-chat join my-room -u alice
+kawazu join my-room -u alice
 
 # プライベートルーム
-code-chat join private-room -p password123
+kawazu join private-room -p password123
 ```
 
 ### 6.3 エディタでチャット
@@ -234,7 +234,7 @@ function fixBug() {
 ## 🛠️ トラブルシューティング
 
 ### サイトが表示されない
-```bash
+```powershell
 # ポートが使用されているか確認
 netstat -ano | findstr :3000
 netstat -ano | findstr :8000
@@ -251,13 +251,13 @@ npm run dev
 ### CLI エラー
 ```bash
 # 設定確認
-code-chat config --show
+kawazu config --show
 
 # サーバーURL設定
-code-chat config --server http://localhost:8000
+kawazu config --server http://localhost:8000
 
 # 権限エラーの場合
-npm install -g code-chat-cli --force
+npm install -g kawazu --force
 ```
 
 ### ファイル監視が動かない
@@ -295,7 +295,7 @@ A: はい、WebSocketでリアルタイム通信するため同時チャット�
 A: Supabase Dashboard の rooms テーブルから確認または変更できます。
 
 **Q: CLIが反応しません**
-A: `Ctrl+C` で終了し、`code-chat config` で設定を確認してください。
+A: `Ctrl+C` で終了し、`kawazu config` で設定を確認してください。
 
 **Q: エディタで書いた内容が送信されません**
 A: ファイルを保存（Ctrl+S）することで送信されます。
@@ -312,15 +312,15 @@ npm run dev:api         # API のみ起動
 npm run dev:web         # Web のみ起動
 
 # CLI関連  
-code-chat join <room>   # ルーム参加
-code-chat create <name> # ルーム作成
-code-chat list          # ローカルファイル一覧
-code-chat config        # 設定管理
-code-chat help-usage    # 詳細ヘルプ
+kawazu join <room>      # ルーム参加
+kawazu create <name>    # ルーム作成
+kawazu list             # ローカルファイル一覧
+kawazu config           # 設定管理
+kawazu help-usage       # 詳細ヘルプ
 
 # ビルド・公開
 cd packages/cli && npm run build  # CLIビルド
 npm publish                       # NPM公開
 ```
 
-これで Code Chat Platform が完全に使用可能になります！🎉
+これで Kawazu が完全に使用可能になります！🎉

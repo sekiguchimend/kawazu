@@ -160,34 +160,96 @@ export function isSystemMessage(line: string): boolean {
 }
 
 export function extractNewContent(currentContent: string, lastContent: string): string {
-  // 入力エリアからメッセージを抽出
-  const inputAreaStart = '╔═ メッセージ入力 ═══════════════════════════════════════════════════════════╗';
-  const inputAreaEnd = '╚═══════════════════════════════════════════════════════════════════════════╝';
+  // 新しい線形式のマーカーを定義
+  const inputLineStart = '------------------------------------------------------------------------------>';
+  const separatorLine = '================================================================================';
   
-  const startIndex = currentContent.lastIndexOf(inputAreaStart);
-  const endIndex = currentContent.lastIndexOf(inputAreaEnd);
-  
-  if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
+  // 現在のコンテンツから入力エリアを抽出
+  const currentInputArea = extractInputAreaFromContent(currentContent);
+  if (!currentInputArea) {
     return '';
   }
   
-  // 入力エリア内のテキストを抽出
-  const inputArea = currentContent.substring(startIndex, endIndex);
-  const lines = inputArea.split('\n');
+  // 前回のコンテンツから入力エリアを抽出
+  const lastInputArea = lastContent ? extractInputAreaFromContent(lastContent) : '';
   
-  // 実際のメッセージ内容を抽出（枠線やプレースホルダーを除外）
-  const messageLines = lines.filter(line => {
-    const trimmed = line.trim();
-    return trimmed && 
-           !trimmed.startsWith('║') && 
-           !trimmed.startsWith('╔') && 
-           !trimmed.startsWith('╚') &&
-           !trimmed.includes('ここにメッセージを入力') &&
-           !isSystemMessage(trimmed) && 
-           !isFileShareCommand(trimmed);
-  });
+  // 両方のエリアを行に分割してクリーンアップ
+  const currentLines = cleanupMessageLines(currentInputArea.split('\n'));
+  const lastLines = lastContent ? cleanupMessageLines(lastInputArea.split('\n')) : [];
   
-  return messageLines.join('\n').trim();
+  // 差分を検出して新しいメッセージのみを抽出
+  const newLines = detectNewLines(currentLines, lastLines);
+  
+  // 結果をフィルタリングして返す
+  return newLines.join('\n').trim();
+}
+
+function extractInputAreaFromContent(content: string): string {
+  const inputLineStart = '------------------------------------------------------------------------------>';
+  const separatorLine = '================================================================================';
+  
+  // 最新の入力線を見つける
+  const inputLineIndex = content.lastIndexOf(inputLineStart);
+  if (inputLineIndex === -1) {
+    return '';
+  }
+  
+  // 入力線より前の部分を取得
+  const beforeInputLine = content.substring(0, inputLineIndex);
+  
+  // 最後の区切り線を見つける
+  const lastSeparatorIndex = beforeInputLine.lastIndexOf(separatorLine);
+  if (lastSeparatorIndex === -1) {
+    return '';
+  }
+  
+  // 区切り線から入力線までの内容を抽出
+  return beforeInputLine.substring(lastSeparatorIndex + separatorLine.length);
+}
+
+function cleanupMessageLines(lines: string[]): string[] {
+  return lines
+    .map(line => line.trim())
+    .filter(line => {
+      if (!line) return false;
+      
+      // システムメッセージやガイダンスを除外
+      if (line.includes('💭 チャットを開始しましょう！')) return false;
+      if (line.includes('メッセージを線の上に書き')) return false;
+      if (line.includes('ファイルを保存すると送信されます')) return false;
+      if (line.includes('Ctrl+C で終了')) return false;
+      
+      // コメント行を除外
+      if (isSystemMessage(line)) return false;
+      
+      // Kawazuコマンドも含める（ファイル共有コマンドなど）
+      return true;
+    });
+}
+
+function detectNewLines(currentLines: string[], lastLines: string[]): string[] {
+  // 前回の行数より多い場合、新しい行があるということ
+  if (currentLines.length > lastLines.length) {
+    return currentLines.slice(lastLines.length);
+  }
+  
+  // 同じ長さの場合、最後の行が変更されているかチェック
+  if (currentLines.length === lastLines.length && currentLines.length > 0) {
+    const lastCurrentLine = currentLines[currentLines.length - 1];
+    const lastPreviousLine = lastLines.length > 0 ? lastLines[lastLines.length - 1] : '';
+    
+    if (lastCurrentLine !== lastPreviousLine) {
+      // 最後の行が変更されている場合、その行のみを返す
+      return [lastCurrentLine];
+    }
+  }
+  
+  return [];
+}
+
+function isKawazuCommand(line: string): boolean {
+  const trimmed = line.trim();
+  return trimmed.startsWith('kawazu ') || isFileShareCommand(trimmed);
 }
 
 export function isFileShareCommand(line: string): boolean {

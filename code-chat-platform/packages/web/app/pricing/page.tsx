@@ -281,42 +281,6 @@ const PricingPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header Navigation */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="flex items-center justify-between px-8 py-6">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-black"></div>
-            <span className="text-2xl font-bold tracking-tight">KAWAZU</span>
-          </div>
-          
-          <nav className="hidden md:flex items-center space-x-8 text-sm font-medium">
-            <Link href="/" className="hover:opacity-60 transition-opacity">HOME</Link>
-            <Link href="#features" className="hover:opacity-60 transition-opacity">FEATURES</Link>
-            <Link href="/pricing" className="text-blue-600 font-semibold">PRICING</Link>
-            <Link href="#docs" className="hover:opacity-60 transition-opacity">DOCS</Link>
-            <Link href="/developer" className="hover:opacity-60 transition-opacity">DEVELOPER</Link>
-          </nav>
-          
-          <div className="flex items-center space-x-4">
-            {isAuthenticated && user ? (
-              <>
-                <span className="text-sm text-gray-600">こんにちは、{user.username}さん</span>
-                <Link href="/dashboard" className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition duration-200">
-                  DASHBOARD
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/auth" className="text-sm hover:opacity-60 transition-opacity">LOGIN</Link>
-                <Link href="/auth" className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition duration-200">
-                  GET STARTED
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
       <div className="py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* ヘッダー */}

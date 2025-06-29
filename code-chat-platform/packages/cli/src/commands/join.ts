@@ -21,6 +21,7 @@ import {
   isFileShareCommand,
   parseFileShareCommand
 } from '../utils/message';
+import { requireAuth } from '../utils/config';
 
 export async function joinRoom(roomId: string, options: JoinOptions) {
   if (!isValidRoomSlug(roomId)) {
@@ -28,12 +29,15 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
     return;
   }
 
+  // 認証チェック
+  console.log(chalk.blue('🔍 認証状態を確認中...'));
+  const config = await requireAuth();
+
   const spinner = ora('ルームに接続中...').start();
   
   try {
-    // 設定とユーザー名の取得
-    const config = await loadConfig();
-    const username = options.username || config.default_username || await promptUsername();
+    // ユーザー名の取得（認証済みユーザーの場合はconfig.user_usernameを使用）
+    const username = options.username || config.user_username || config.default_username || await promptUsername();
     
     // .codechatファイルのパス
     const codechatFile = getCodechatPath(roomId);
@@ -41,12 +45,15 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
     // .codechatファイルの作成
     await createCodechatFile(codechatFile, roomId, username);
     
-    // WebSocket接続
+    // WebSocket接続（認証トークン付き）
     const socket = io(config.server_url, {
       timeout: 10000,
       transports: ['polling', 'websocket'],
       forceNew: true,
-      autoConnect: true
+      autoConnect: true,
+      auth: {
+        token: config.auth_token
+      }
     });
     
     spinner.text = 'サーバーに接続中...';
@@ -55,8 +62,15 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
     socket.on('connect_error', (error) => {
       spinner.fail('サーバー接続に失敗しました');
       console.error(chalk.red(`接続エラー: ${error.message}`));
-      console.error(chalk.gray(`詳細: ${JSON.stringify(error, null, 2)}`));
-      console.error(chalk.gray(`サーバーURL: ${config.server_url}`));
+      
+      // 認証エラーの場合
+      if (error.message.includes('unauthorized') || error.message.includes('authentication')) {
+        console.log(chalk.yellow(' 認証エラーが発生しました。再ログインが必要です。'));
+        console.log(chalk.blue(' ログイン: ') + chalk.cyan('kawazu login'));
+      } else {
+        console.error(chalk.gray(`詳細: ${JSON.stringify(error, null, 2)}`));
+        console.error(chalk.gray(`サーバーURL: ${config.server_url}`));
+      }
       process.exit(1);
     });
     
