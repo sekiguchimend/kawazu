@@ -97,7 +97,7 @@ const PricingPage = () => {
 
   const fetchPlans = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
       const response = await fetch(`${apiUrl}/api/subscriptions/plans`);
       
       if (!response.ok) {
@@ -124,7 +124,7 @@ const PricingPage = () => {
         return;
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
       const response = await fetch(`${apiUrl}/api/subscriptions/current`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -161,7 +161,7 @@ const PricingPage = () => {
     setProcessingPlan(priceId);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
       console.log('Starting checkout process...', { priceId, apiUrl });
       
       const response = await fetch(`${apiUrl}/api/subscriptions/checkout`, {
@@ -214,7 +214,7 @@ const PricingPage = () => {
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
       const response = await fetch(`${apiUrl}/api/subscriptions/portal`, {
         method: 'POST',
         headers: {

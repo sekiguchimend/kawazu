@@ -14,6 +14,23 @@ const SubscriptionSuccessPage = () => {
   const [verified, setVerified] = useState(false);
   const sessionId = searchParams.get('session_id');
 
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!isAuthenticated) {
+      router.push('/auth');
+      return;
+    }
+
+    if (!sessionId) {
+      router.push('/pricing');
+      return;
+    }
+
+    // サブスクリプション開始の確認
+    verifySubscription();
+  }, [sessionId, isAuthenticated, authLoading]);
+
   const verifySubscription = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -22,7 +39,7 @@ const SubscriptionSuccessPage = () => {
         return;
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
       
       // 開発環境では、テスト用のサブスクリプション完了処理を実行
       if (process.env.NODE_ENV === 'development' && sessionId?.startsWith('cs_test_')) {
@@ -65,7 +82,7 @@ const SubscriptionSuccessPage = () => {
         setVerified(true);
       } else {
         // まだ処理中の可能性があるので、もう一度確認
-        setTimeout(() => verifySubscription(), 3000);
+        setTimeout(verifySubscription, 3000);
       }
     } catch (error) {
       console.error('Verify subscription error:', error);
@@ -75,23 +92,6 @@ const SubscriptionSuccessPage = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!isAuthenticated) {
-      router.push('/auth');
-      return;
-    }
-
-    if (!sessionId) {
-      router.push('/pricing');
-      return;
-    }
-
-    // サブスクリプション開始の確認
-    verifySubscription();
-  }, [sessionId, isAuthenticated, authLoading, router]);
 
   if (loading) {
     return (

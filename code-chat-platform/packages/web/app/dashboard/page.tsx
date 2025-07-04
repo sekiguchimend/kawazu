@@ -67,7 +67,7 @@ const DashboardPage = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
       const response = await fetch(`${apiUrl}/api/subscriptions/current`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -92,7 +92,7 @@ const DashboardPage = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
       const response = await fetch(`${apiUrl}/api/subscriptions/history`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -121,7 +121,7 @@ const DashboardPage = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
       const response = await fetch(`${apiUrl}/api/subscriptions/cancel`, {
         method: 'POST',
         headers: {
@@ -154,7 +154,7 @@ const DashboardPage = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
       const response = await fetch(`${apiUrl}/api/subscriptions/resume`, {
         method: 'POST',
         headers: {
@@ -187,7 +187,7 @@ const DashboardPage = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
       const response = await fetch(`${apiUrl}/api/subscriptions/portal`, {
         method: 'POST',
         headers: {

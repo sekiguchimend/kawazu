@@ -19,7 +19,7 @@ const AuthPage = () => {
     setLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
       
       const body = isLogin 

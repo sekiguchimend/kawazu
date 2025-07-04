@@ -5,32 +5,8 @@ import Link from 'next/link';
 export default function DeveloperPage() {
   return (
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white">
-      {/* Header Navigation */}
-      <header className="fixed top-0 w-full z-50 bg-white/90 dark:bg-black/90 backdrop-blur-sm border-b border-black/10 dark:border-white/10">
-        <div className="flex items-center justify-between px-8 py-6">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-black dark:bg-white"></div>
-            <span className="text-2xl font-bold tracking-tight">KAWAZU</span>
-          </div>
-          
-          <nav className="hidden md:flex items-center space-x-8 text-sm font-medium">
-            <Link href="/" className="hover:opacity-60 transition-opacity">HOME</Link>
-            <Link href="#features" className="hover:opacity-60 transition-opacity">FEATURES</Link>
-            <Link href="/pricing" className="hover:opacity-60 transition-opacity">PRICING</Link>
-            <Link href="#docs" className="hover:opacity-60 transition-opacity">DOCS</Link>
-          </nav>
-          
-          <div className="flex items-center space-x-4">
-            <Link href="/auth" className="text-sm hover:opacity-60 transition-opacity">LOGIN</Link>
-            <div className="w-6 h-6 border border-black dark:border-white flex items-center justify-center cursor-pointer hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all">
-              <span className="text-xs">◐</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
-      <main className="pt-24">
+      <main className="pt-8">
         {/* Hero Section */}
         <section className="px-8 py-20">
           <div className="max-w-6xl mx-auto">
@@ -43,9 +19,9 @@ export default function DeveloperPage() {
                   <div className="w-48 h-48 bg-black dark:bg-white mx-auto lg:mx-0"></div>
                   
                   <div className="text-center lg:text-left">
-                    <h1 className="text-3xl font-black mb-2">YOUR NAME</h1>
+                    <h1 className="text-3xl font-black mb-2">関口峻矢</h1>
                     <p className="text-lg font-light mb-1">Full Stack Developer</p>
-                    <p className="text-sm font-light opacity-60">Japan</p>
+                    <p className="text-sm font-light opacity-60">19歳 • 日本・東京</p>
                   </div>
                 </div>
 
@@ -55,15 +31,15 @@ export default function DeveloperPage() {
                   <div className="space-y-2 text-sm font-light">
                     <div className="flex items-center space-x-2">
                       <span className="w-4 h-4 border border-black dark:border-white flex items-center justify-center">@</span>
-                      <span>email@example.com</span>
+                      <span>shunya.sekiguchi@example.com</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="w-4 h-4 border border-black dark:border-white flex items-center justify-center">G</span>
-                      <span>github.com/username</span>
+                      <span>github.com/sekiguchi-shunya</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="w-4 h-4 border border-black dark:border-white flex items-center justify-center">T</span>
-                      <span>twitter.com/username</span>
+                      <span>twitter.com/sekiguchi_dev</span>
                     </div>
                   </div>
                 </div>
@@ -83,7 +59,7 @@ export default function DeveloperPage() {
                   </div>
                   
                   <p className="text-lg font-light leading-relaxed max-w-3xl">
-                    Passionate developer creating minimalist tools for better collaboration. Focused on clean code, elegant design, and seamless user experiences.
+                    19歳のフルスタック開発者。東京を拠点に活動し、より良いコラボレーションのためのミニマリストなツールを作成しています。クリーンなコード、エレガントなデザイン、シームレスなユーザーエクスペリエンスに焦点を当てています。
                   </p>
                 </div>
 
@@ -112,7 +88,7 @@ export default function DeveloperPage() {
                   <div className="space-y-6">
                     <div className="border border-black dark:border-white p-6">
                       <h4 className="text-xl font-bold mb-2">Kawazu</h4>
-                      <p className="font-light mb-4">Real-time collaboration platform for developers. Chat directly in your code editor with seamless integration.</p>
+                      <p className="font-light mb-4">開発者向けのリアルタイムコラボレーションプラットフォーム。コードエディタで直接チャットができ、シームレスな統合を提供します。</p>
                       <div className="flex flex-wrap gap-2">
                         <span className="px-2 py-1 text-xs border border-black dark:border-white">TypeScript</span>
                         <span className="px-2 py-1 text-xs border border-black dark:border-white">Next.js</span>
@@ -122,8 +98,8 @@ export default function DeveloperPage() {
                     </div>
 
                     <div className="border border-black dark:border-white p-6">
-                      <h4 className="text-xl font-bold mb-2">Other Projects</h4>
-                      <p className="font-light mb-4">Various open source contributions and personal projects focused on developer productivity and user experience.</p>
+                      <h4 className="text-xl font-bold mb-2">その他のプロジェクト</h4>
+                      <p className="font-light mb-4">開発者の生産性とユーザーエクスペリエンス向上に焦点を当てた、様々なオープンソース貢献と個人プロジェクト。</p>
                       <div className="flex flex-wrap gap-2">
                         <span className="px-2 py-1 text-xs border border-black dark:border-white">React</span>
                         <span className="px-2 py-1 text-xs border border-black dark:border-white">Python</span>
@@ -142,9 +118,9 @@ export default function DeveloperPage() {
                         <span className="text-xs font-bold">24</span>
                       </div>
                       <div>
-                        <h4 className="font-bold text-lg">Independent Developer</h4>
-                        <p className="font-light opacity-60 mb-2">2024 - Present</p>
-                        <p className="font-light">Building innovative tools for developer collaboration and productivity.</p>
+                        <h4 className="font-bold text-lg">独立開発者</h4>
+                        <p className="font-light opacity-60 mb-2">2024年 - 現在</p>
+                        <p className="font-light">開発者のコラボレーションと生産性向上のための革新的なツールを構築。</p>
                       </div>
                     </div>
 
@@ -153,9 +129,9 @@ export default function DeveloperPage() {
                         <span className="text-xs font-bold">23</span>
                       </div>
                       <div>
-                        <h4 className="font-bold text-lg">Full Stack Developer</h4>
-                        <p className="font-light opacity-60 mb-2">2023 - 2024</p>
-                        <p className="font-light">Developed scalable web applications using modern technologies and best practices.</p>
+                        <h4 className="font-bold text-lg">フルスタック開発者</h4>
+                        <p className="font-light opacity-60 mb-2">2023年 - 2024年</p>
+                        <p className="font-light">モダンテクノロジーとベストプラクティスを使用したスケーラブルなWebアプリケーションの開発。</p>
                       </div>
                     </div>
                   </div>
@@ -173,7 +149,7 @@ export default function DeveloperPage() {
               <span className="text-xl font-bold">KAWAZU</span>
             </div>
             <p className="text-sm font-light opacity-60">
-              © 2024 Kawazu. Crafted with precision.
+              © 2024 Kawazu. Crafted with precision by 関口峻矢.
             </p>
           </div>
         </footer>

@@ -46,8 +46,8 @@ const Header = () => {
           ) : isAuthenticated && user ? (
             <>
               <span className="text-sm text-gray-600">こんにちは、{user.username}さん</span>
-              <Link href="/dashboard" className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition duration-200">
-                DASHBOARD
+              <Link href="/create-profile" className="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 transition duration-200">
+                PROFILE
               </Link>
               {/* ドロップダウンメニュー */}
               <div className="relative group">

@@ -1,7 +1,7 @@
 import { CreateRoomData, JoinRoomData, Room, Message, Participant, UserProfile, CreateProfileData, ApiResponse } from '@/types';
 import { API_URL } from './supabase';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
 
 // API呼び出しの基本設定
 const apiCall = async (endpoint: string, options: RequestInit = {}) => {
