@@ -14,23 +14,6 @@ const SubscriptionSuccessPage = () => {
   const [verified, setVerified] = useState(false);
   const sessionId = searchParams.get('session_id');
 
-  useEffect(() => {
-    if (authLoading) return;
-
-    if (!isAuthenticated) {
-      router.push('/auth');
-      return;
-    }
-
-    if (!sessionId) {
-      router.push('/pricing');
-      return;
-    }
-
-    // サブスクリプション開始の確認
-    verifySubscription();
-  }, [sessionId, isAuthenticated, authLoading]);
-
   const verifySubscription = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -82,7 +65,7 @@ const SubscriptionSuccessPage = () => {
         setVerified(true);
       } else {
         // まだ処理中の可能性があるので、もう一度確認
-        setTimeout(verifySubscription, 3000);
+        setTimeout(() => verifySubscription(), 3000);
       }
     } catch (error) {
       console.error('Verify subscription error:', error);
@@ -92,6 +75,23 @@ const SubscriptionSuccessPage = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!isAuthenticated) {
+      router.push('/auth');
+      return;
+    }
+
+    if (!sessionId) {
+      router.push('/pricing');
+      return;
+    }
+
+    // サブスクリプション開始の確認
+    verifySubscription();
+  }, [sessionId, isAuthenticated, authLoading, router]);
 
   if (loading) {
     return (

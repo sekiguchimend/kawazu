@@ -217,7 +217,7 @@ program
     
     console.log(chalk.yellow('🔧 初回設定:'));
     console.log('  設定を行う: ' + chalk.cyan('kawazu config'));
-    console.log('  サーバーURL設定: ' + chalk.cyan('kawazu config --server https://kawazu-app.com\n'));
+    console.log('  サーバーURL設定: ' + chalk.cyan('kawazu config --server https://kawazu.onrender.com\n'));
     
     console.log(chalk.yellow('📝 チャットファイルの使い方:'));
     console.log('  • # で始まる行はシステムメッセージ（送信されません）');

@@ -60,7 +60,7 @@ const DashboardPage = () => {
 
     fetchSubscription();
     fetchHistory();
-  }, [isAuthenticated, authLoading]);
+  }, [isAuthenticated, authLoading, router]);
 
   const fetchSubscription = async () => {
     try {

@@ -86,7 +86,7 @@ CLI設定を管理します。
 
 **例:**
 ```bash
-kawazu config --server http://localhost:8000
+kawazu config --server https://kawazu.onrender.com
 kawazu config --username john
 kawazu config --show
 ```
@@ -201,7 +201,7 @@ kawazu config
 kawazu config --show
 
 # サーバーURLを設定
-kawazu config --server http://your-server:8000
+kawazu config --server https://kawazu.onrender.com
 ```
 
 ### ユーザー名エラー

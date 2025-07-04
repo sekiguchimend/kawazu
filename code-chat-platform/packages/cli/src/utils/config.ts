@@ -14,7 +14,7 @@ export async function loadConfig(): Promise<Config> {
     if (await fs.pathExists(CONFIG_FILE)) {
       const config = await fs.readJson(CONFIG_FILE);
       return {
-        server_url: process.env.KAWAZU_SERVER || 'https://kawazu-app.com',
+        server_url: process.env.KAWAZU_SERVER || 'https://kawazu.onrender.com',
         ...config
       };
     }
@@ -24,7 +24,7 @@ export async function loadConfig(): Promise<Config> {
   
   // デフォルト設定（本番環境URL）
   return {
-    server_url: process.env.KAWAZU_SERVER || 'https://kawazu-app.com'
+    server_url: process.env.KAWAZU_SERVER || 'https://kawazu.onrender.com'
   };
 }
 
@@ -43,7 +43,7 @@ export async function saveConfig(config: Partial<Config>): Promise<void> {
 
 export async function getDefaultConfig(): Promise<Config> {
   return {
-    server_url: process.env.KAWAZU_SERVER || 'https://kawazu-app.com',
+    server_url: process.env.KAWAZU_SERVER || 'https://kawazu.onrender.com',
     default_username: process.env.KAWAZU_USERNAME,
     auto_open_editor: false,
     editor_command: 'code'

@@ -201,7 +201,7 @@ export async function showSubscriptionPlan() {
 
       } else {
         console.log(chalk.yellow(' アクティブなサブスクリプションがありません'));
-        console.log(chalk.blue(' プランを選択: ') + chalk.cyan('https://kawazu-app.com/pricing'));
+        console.log(chalk.blue(' プランを選択: ') + chalk.cyan('https://kawazu.onrender.com/pricing'));
       }
 
     } catch (error) {

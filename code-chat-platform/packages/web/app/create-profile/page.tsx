@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { CreateProfileForm } from '@/components/CreateProfileForm';
 
 export default function CreateProfilePage() {
@@ -17,9 +18,9 @@ export default function CreateProfilePage() {
                 あなたの情報を入力してプロフィールを作成しましょう
               </p>
             </div>
-            <a href="/" className="text-blue-600 hover:text-blue-700">
+            <Link href="/" className="text-blue-600 hover:text-blue-700">
               ← ホームに戻る
-            </a>
+            </Link>
           </div>
         </div>
       </header>

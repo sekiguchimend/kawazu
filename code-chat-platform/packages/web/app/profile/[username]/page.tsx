@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
 import { toast } from 'react-hot-toast';
 import { getProfile } from '@/lib/api';
 import { UserProfile } from '@/types';
@@ -66,9 +68,9 @@ export default function ProfilePage() {
           <div className="text-6xl mb-4">😞</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">プロフィールが見つかりません</h1>
           <p className="text-gray-600 mb-4">{error || 'このユーザーは存在しないか、プライベート設定です'}</p>
-          <a href="/" className="btn-primary">
+          <Link href="/" className="btn-primary">
             ホームに戻る
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -80,9 +82,9 @@ export default function ProfilePage() {
       <header className="bg-white shadow">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <a href="/" className="text-blue-600 hover:text-blue-700">
+            <Link href="/" className="text-blue-600 hover:text-blue-700">
               ← Kawazu に戻る
-            </a>
+            </Link>
             <button
               onClick={copyProfileUrl}
               className="btn-secondary text-sm"
@@ -102,9 +104,11 @@ export default function ProfilePage() {
               {/* アバター */}
               <div className="flex-shrink-0">
                 {profile.avatar_url ? (
-                  <img
+                  <Image
                     src={profile.avatar_url}
                     alt={profile.username}
+                    width={80}
+                    height={80}
                     className="w-20 h-20 rounded-full object-cover"
                   />
                 ) : (

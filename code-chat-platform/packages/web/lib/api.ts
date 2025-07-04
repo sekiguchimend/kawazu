@@ -1,7 +1,7 @@
 import { CreateRoomData, JoinRoomData, Room, Message, Participant, UserProfile, CreateProfileData, ApiResponse } from '@/types';
 import { API_URL } from './supabase';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://kawazu.onrender.com';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 // API呼び出しの基本設定
 const apiCall = async (endpoint: string, options: RequestInit = {}) => {
@@ -70,6 +70,13 @@ export const getCurrentUser = async () => {
 export const updateProfile = async (profileData: Partial<UserProfile>) => {
   return apiCall('/api/profiles/me', {
     method: 'PUT',
+    body: JSON.stringify(profileData),
+  });
+};
+
+export const createProfile = async (profileData: CreateProfileData) => {
+  return apiCall('/api/profiles', {
+    method: 'POST',
     body: JSON.stringify(profileData),
   });
 };

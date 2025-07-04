@@ -3,7 +3,7 @@
 ## [1.1.1] - 2024-12-30
 
 ### 🚀 Production Ready
-- **本番環境エンドポイント**: デフォルトURLを`https://kawazu-app.com`に変更
+- **本番環境エンドポイント**: デフォルトURLを`https://kawazu.onrender.com`に変更
 - **環境変数サポート**: `KAWAZU_SERVER`で本番URLをカスタマイズ可能
 - **開発環境サポート**: `KAWAZU_SERVER=http://localhost:8000`で開発環境使用可能
 
