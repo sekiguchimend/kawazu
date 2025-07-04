@@ -462,7 +462,7 @@ export const handleConnection = (io: Server) => {
         }
 
         // APIエンドポイントに転送して処理
-        const response = await fetch(`${process.env.API_BASE_URL || 'http://localhost:8000'}/api/file-sharing/${room_slug}/shares`, {
+        const response = await fetch(`${process.env.API_BASE_URL || 'https://kawazu.onrender.com'}/api/file-sharing/${room_slug}/shares`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -533,7 +533,7 @@ export const handleConnection = (io: Server) => {
         }
 
         // APIエンドポイントで処理
-        const response = await fetch(`${process.env.API_BASE_URL || 'http://localhost:8000'}/api/file-sharing/shares/${share_token}/${action}`, {
+        const response = await fetch(`${process.env.API_BASE_URL || 'https://kawazu.onrender.com'}/api/file-sharing/shares/${share_token}/${action}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -589,7 +589,7 @@ export const handleConnection = (io: Server) => {
         }
 
         // APIエンドポイントで処理
-        const response = await fetch(`${process.env.API_BASE_URL || 'http://localhost:8000'}/api/file-sharing/shares/${share_token}/content?username=${username}`, {
+        const response = await fetch(`${process.env.API_BASE_URL || 'https://kawazu.onrender.com'}/api/file-sharing/shares/${share_token}/content?username=${username}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -638,7 +638,7 @@ export const handleConnection = (io: Server) => {
         }
 
         // APIエンドポイントで処理
-        const response = await fetch(`${process.env.API_BASE_URL || 'http://localhost:8000'}/api/file-sharing/shares/${share_token}/content`, {
+        const response = await fetch(`${process.env.API_BASE_URL || 'https://kawazu.onrender.com'}/api/file-sharing/shares/${share_token}/content`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -687,7 +687,7 @@ export const handleConnection = (io: Server) => {
         }
 
         // APIエンドポイントで処理
-        const response = await fetch(`${process.env.API_BASE_URL || 'http://localhost:8000'}/api/file-sharing/${room_slug}/shares?username=${username}`, {
+        const response = await fetch(`${process.env.API_BASE_URL || 'https://kawazu.onrender.com'}/api/file-sharing/${room_slug}/shares?username=${username}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',

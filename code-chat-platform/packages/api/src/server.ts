@@ -26,7 +26,12 @@ const app = express();
 const server = createServer(app);
 
 // 環境変数から許可オリジンを取得
-const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:8000'];
+const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [
+  'http://localhost:3000',
+  'http://localhost:8000',
+  'https://kawazu-web.vercel.app',
+  'https://*.vercel.app'
+];
 
 const io = new Server(server, {
   cors: {
