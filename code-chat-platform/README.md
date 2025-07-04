@@ -54,6 +54,24 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
+# 環境変数設定例
+```bash
+# フロントエンド
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+FRONTEND_URL=https://kawazu-web.vercel.app
+
+# バックエンド
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+NEXT_PUBLIC_API_URL=https://kawazu.onrender.com
+
+# Stripe
+STRIPE_SECRET_KEY=your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=your_webhook_secret
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_publishable_key
+```
+
 ## 🚀 開発サーバー起動
 
 ### すべて同時に起動
@@ -76,11 +94,15 @@ npm run dev
 
 ## 📱 使用方法
 
-### 1. ルーム作成
+### 1. Webアプリ
+
+1. https://kawazu-web.vercel.app でWebアプリを開く
+
+### 2. ルーム作成
 1. http://localhost:3000 でWebアプリを開く
 2. 新しいルームを作成
 
-### 2. CLIでチャット参加
+### 3. CLIでチャット参加
 ```bash
 # CLIをビルド
 cd packages/cli
@@ -90,7 +112,7 @@ npm run build
 npx kawazu join room-name
 ```
 
-### 3. エディタでチャット
+### 4. エディタでチャット
 1. `.codechat` ファイルが作成されます
 2. エディタでファイルを開く
 3. ファイルに入力して保存

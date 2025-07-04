@@ -173,7 +173,7 @@ router.post('/checkout', authenticateToken, async (req: AuthenticatedRequest, re
     }
 
     // Checkout Session作成
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://kawazu-web.vercel.app';
     const session = await createCheckoutSession(
       customerId,
       price_id,
@@ -227,7 +227,7 @@ router.post('/portal', authenticateToken, async (req: AuthenticatedRequest, res:
     }
 
     // カスタマーポータルセッション作成
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://kawazu-web.vercel.app';
     const portalSession = await createCustomerPortalSession(
       subscription.stripe_customer_id,
       `${frontendUrl}/dashboard`

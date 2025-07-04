@@ -85,12 +85,11 @@ export function validateEnvironmentConfig(): ConfigValidationResult {
   }
 
   // CORS設定チェック
-  const corsOrigins = process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'];
-  if (process.env.NODE_ENV === 'production') {
-    const hasLocalhostInProd = corsOrigins.some(origin => origin.includes('localhost'));
-    if (hasLocalhostInProd) {
-      warnings.push('CORS_ORIGINS contains localhost URLs in production');
-    }
+  const corsOrigins = process.env.CORS_ORIGINS?.split(',') || ['https://kawazu-web.vercel.app'];
+  
+  const hasLocalhostInProd = corsOrigins.some(origin => origin.includes('localhost'));
+  if (hasLocalhostInProd && process.env.NODE_ENV === 'production') {
+    warnings.push('CORS_ORIGINS contains localhost URLs in production');
   }
 
   // セキュリティ設定チェック
@@ -106,7 +105,7 @@ export function validateEnvironmentConfig(): ConfigValidationResult {
       port: parseInt(process.env.PORT || '8000'),
       nodeEnv: process.env.NODE_ENV || 'development',
       corsOrigins,
-      frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000'
+      frontendUrl: process.env.FRONTEND_URL || 'https://kawazu-web.vercel.app'
     },
     database: {
       supabaseUrl: process.env.SUPABASE_URL || '',

@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase接続設定
-const supabaseUrl = process.env.SUPABASE_URL || 'http://localhost:54321';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || '';
+const supabaseUrl = process.env.SUPABASE_URL || 'https://your-production-supabase-url.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'your-production-service-key';
 
 if (!supabaseServiceKey) {
-  console.warn('⚠️  SUPABASE_SERVICE_KEY not found, using local development setup');
+  console.warn('⚠️  SUPABASE_SERVICE_ROLE_KEY not found, using local development setup');
 }
 
 // サービスキーを使用したクライアント（Admin権限）

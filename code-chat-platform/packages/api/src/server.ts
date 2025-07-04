@@ -27,7 +27,7 @@ const server = createServer(app);
 
 // 環境変数から許可オリジンを取得
 const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [
-  'http://localhost:3000',
+  'https://kawazu-web.vercel.app',
   'https://kawazu.onrender.com',
   'https://kawazu-web.vercel.app',
   'https://*.vercel.app'
@@ -172,7 +172,7 @@ async function startServer() {
   server.listen(PORT, () => {
     console.log(`🚀 Kawazu API Server running on port ${PORT}`);
     console.log(`📡 WebSocket server ready`);
-    console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+    console.log(`🔗 Health check: https://kawazu.onrender.com/health`);
     console.log(`🌐 CORS origins: ${config.server.corsOrigins.join(', ')}`);
     console.log(`💳 Payments: ${config.stripe.isConfigured ? 'Enabled' : 'Disabled'}`);
     console.log(`🛡️  Security: ${config.security.enableHttps ? 'HTTPS' : 'HTTP'} mode`);

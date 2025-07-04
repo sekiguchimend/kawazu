@@ -370,7 +370,7 @@ router.get('/:username/url', validateUsername, async (req: Request, res: Respons
       return;
     }
 
-    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const baseUrl = process.env.FRONTEND_URL || 'https://kawazu-web.vercel.app';
     const profileUrl = `${baseUrl}/profile/${username}`;
 
     res.json({

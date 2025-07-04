@@ -409,7 +409,7 @@ export const handleConnection = (io: Server) => {
           .single();
 
         if (profile) {
-          const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+          const baseUrl = process.env.FRONTEND_URL || 'https://kawazu-web.vercel.app';
           const profileUrl = `${baseUrl}/profile/${username}`;
           
           socket.emit('profile-url-response', {
