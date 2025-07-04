@@ -27,7 +27,7 @@ const SubscriptionSuccessPage = () => {
       return;
     }
 
-    // サブスクリプション開始の確認
+    // サブスクリプション開始の確
     verifySubscription();
   }, [sessionId, isAuthenticated, authLoading]);
 
