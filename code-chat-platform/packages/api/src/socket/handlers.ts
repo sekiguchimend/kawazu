@@ -149,8 +149,9 @@ export const handleConnection = (io: Server) => {
           return;
         }
 
-        if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
-          socket.emit('error', { message: 'Invalid username format' });
+        // ユーザー名検証を緩和（日本語・中国語・韓国語等の文字を許可）
+        if (username.length > 50 || username.trim().length === 0) {
+          socket.emit('error', { message: 'Invalid username: must be 1-50 characters' });
           return;
         }
 

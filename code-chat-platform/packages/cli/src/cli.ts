@@ -9,14 +9,20 @@ import { configureSettings, showConfig } from './commands/config';
 import { showProfile, openProfile } from './commands/profile';
 import { shareFile, listSharedFiles, downloadSharedFile, revokeFileShare } from './commands/share';
 import { approveFileShare, denyFileShare, listPendingRequests } from './commands/approve';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const program = new Command();
+
+// package.jsonからバージョンを読み取る
+const packageJsonPath = path.join(__dirname, '../package.json');
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
 
 // バージョンとメタ情報
 program
   .name('kawazu')
   .description('エディタ上でリアルタイムチャットを行うCLIツール')
-  .version('1.1.1');
+  .version(packageJson.version);
 
 // ログインコマンド
 program

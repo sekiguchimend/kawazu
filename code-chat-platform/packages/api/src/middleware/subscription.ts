@@ -231,6 +231,8 @@ export const checkRoomCreationLimit = async (
 // ルーム参加制限チェック
 export const checkRoomParticipantLimit = async (roomId: string, currentCount: number): Promise<boolean> => {
   try {
+    console.log('🔍 checkRoomParticipantLimit 開始:', { roomId, currentCount });
+    
     // ルーム作成者のプラン制限を取得
     const { data: room, error } = await supabase
       .from('rooms')
@@ -238,22 +240,36 @@ export const checkRoomParticipantLimit = async (roomId: string, currentCount: nu
       .eq('id', roomId)
       .single();
 
+    console.log('🔍 ルーム情報クエリ結果:', { room, error });
+
     if (error || !room || !room.created_by) {
       // 作成者情報がない場合はデフォルト制限
+      console.log('🔍 作成者情報なし、デフォルト制限を適用');
       return currentCount < 5;
     }
 
+    console.log('🔍 getUserPlanLimits 呼び出し中...');
     const limits = await getUserPlanLimits(room.created_by);
+    console.log('🔍 取得したプラン制限:', limits);
     
     if (!limits) {
+      console.log('🔍 プラン制限取得失敗、デフォルト制限を適用');
       return currentCount < 5;
     }
 
     if (limits.max_participants_per_room === 'unlimited') {
+      console.log('🔍 無制限プランのため参加許可');
       return true;
     }
 
-    return currentCount < limits.max_participants_per_room;
+    const result = currentCount < limits.max_participants_per_room;
+    console.log('🔍 参加制限チェック結果:', {
+      currentCount,
+      maxParticipants: limits.max_participants_per_room,
+      canJoin: result
+    });
+
+    return result;
   } catch (error) {
     console.error('Check participant limit error:', error);
     return false;

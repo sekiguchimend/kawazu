@@ -33,7 +33,14 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
   console.log(chalk.blue('🔍 認証状態を確認中...'));
   const config = await requireAuth();
 
-  const spinner = ora('ルームに接続中...').start();
+  // デバッグモードのチェック
+  const debugMode = process.env.KAWAZU_DEBUG === 'true';
+  const spinner = debugMode ? null : ora('ルームに接続中...').start();
+  
+  if (debugMode) {
+    console.log(chalk.yellow('🔍 デバッグモードが有効です'));
+    console.log(chalk.blue('🔍 ルームに接続中...'));
+  }
   
   try {
     // ユーザー名の取得（認証済みユーザーの場合はconfig.user_usernameを使用）
@@ -47,7 +54,7 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
     
     // WebSocket接続（認証トークン付き）
     const socket = io(config.server_url, {
-      timeout: 10000,
+      timeout: 30000,
       transports: ['polling', 'websocket'],
       forceNew: true,
       autoConnect: true,
@@ -60,8 +67,13 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
     
     // 接続エラーハンドリング
     socket.on('connect_error', (error) => {
-      spinner.fail('サーバー接続に失敗しました');
+      if (spinner) {
+        spinner.fail('サーバー接続に失敗しました');
+      } else {
+        console.log(chalk.red('❌ サーバー接続に失敗しました'));
+      }
       console.error(chalk.red(`接続エラー: ${error.message}`));
+      console.log(chalk.blue('🔍 接続エラーの詳細:'), error);
       
       // 認証エラーの場合
       if (error.message.includes('unauthorized') || error.message.includes('authentication')) {
@@ -74,30 +86,77 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
       process.exit(1);
     });
     
+    // 切断イベント
+    socket.on('disconnect', (reason) => {
+      console.log(chalk.yellow(`🔍 WebSocket切断: ${reason}`));
+    });
+    
+    // 再接続イベント
+    socket.on('reconnect', (attemptNumber) => {
+      console.log(chalk.blue(`🔍 WebSocket再接続: ${attemptNumber}`));
+    });
+    
+    // 再接続エラー
+    socket.on('reconnect_error', (error) => {
+      console.log(chalk.red(`🔍 再接続エラー: ${error.message}`));
+    });
+    
     // タイムアウト処理
     setTimeout(() => {
       if (!socket.connected) {
-        spinner.fail('接続タイムアウト');
+        if (spinner) {
+          spinner.fail('接続タイムアウト');
+        } else {
+          console.log(chalk.red('❌ 接続タイムアウト'));
+        }
         console.error(chalk.red('サーバーへの接続がタイムアウトしました'));
         process.exit(1);
       }
-    }, 10000);
+    }, 30000);
+    
+    // ルーム参加のタイムアウト処理
+    let roomJoined = false;
+    setTimeout(() => {
+      if (socket.connected && !roomJoined) {
+        if (spinner) {
+          spinner.fail('ルーム参加タイムアウト');
+        } else {
+          console.log(chalk.red('❌ ルーム参加タイムアウト'));
+        }
+        console.error(chalk.red('ルーム参加がタイムアウトしました'));
+        console.log(chalk.yellow('サーバーからの応答がありません。'));
+        process.exit(1);
+      }
+    }, 60000);
     
     // 接続成功時の処理
     socket.on('connect', () => {
-      spinner.text = 'ルームに参加中...';
+      if (spinner) {
+        spinner.text = 'ルームに参加中...';
+      } else {
+        console.log(chalk.blue('🔍 ルームに参加中...'));
+      }
+      console.log(chalk.blue('🔍 WebSocket接続成功'));
       
       // ルーム参加リクエスト
-      socket.emit('join-room', {
+      const joinData = {
         room_slug: roomId,
         username: username,
         password: options.password
-      });
+      };
+      console.log(chalk.blue('🔍 join-roomリクエスト送信:'), joinData);
+      
+      socket.emit('join-room', joinData);
     });
     
     // ルーム参加成功
     socket.on('joined-room', (data) => {
-      spinner.succeed(`ルーム "${data.room.name}" に参加しました！`);
+      roomJoined = true;
+      if (spinner) {
+        spinner.succeed(`ルーム "${data.room.name}" に参加しました！`);
+      } else {
+        console.log(chalk.green(`✅ ルーム "${data.room.name}" に参加しました！`));
+      }
       console.log(chalk.green(`📝 ${codechatFile} をエディタで開いてチャットを開始してください`));
       console.log(chalk.blue(`💡 終了するには Ctrl+C を押してください`));
       
@@ -110,10 +169,18 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
     
     // エラーハンドリング
     socket.on('error', (error) => {
-      spinner.fail('エラーが発生しました');
-      console.error(chalk.red(`❌ ${error.message}`));
+      if (spinner) {
+        spinner.fail('エラーが発生しました');
+      } else {
+        console.log(chalk.red('❌ エラーが発生しました'));
+      }
+      console.error(chalk.red(`❌ ${error.message || error}`));
+      console.log(chalk.blue('🔍 エラーの詳細:'), JSON.stringify(error, null, 2));
       
-      if (error.message.includes('Password required') || error.message.includes('Invalid password')) {
+      // ユーザー名の問題の場合
+      if (error.message && error.message.includes('Invalid username')) {
+        console.log(chalk.yellow('💡 ユーザー名に問題があります。英数字、日本語、アンダースコア、ハイフンが使用できます。'));
+      } else if (error.message && (error.message.includes('Password required') || error.message.includes('Invalid password'))) {
         console.log(chalk.yellow('💡 プライベートルームの場合は -p オプションでパスワードを指定してください'));
         console.log(chalk.gray('例: kawazu join room-name -p password'));
       }
@@ -125,7 +192,11 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
     // Socket イベントリスナーは joinRoom 内で設定される
     
   } catch (error) {
-    spinner.fail('ルーム参加に失敗しました');
+    if (spinner) {
+      spinner.fail('ルーム参加に失敗しました');
+    } else {
+      console.log(chalk.red('❌ ルーム参加に失敗しました'));
+    }
     console.error(chalk.red(`エラー: ${error.message}`));
     process.exit(1);
   }
