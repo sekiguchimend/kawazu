@@ -153,3 +153,97 @@ BEGIN
     RAISE NOTICE 'Service role RLS policies have been successfully applied!';
     RAISE NOTICE 'Your API server should now be able to access the database properly.';
 END $$;
+
+-- Service Role がサブスクリプション情報にアクセスできるようにRLSポリシーを修正
+
+-- 既存のポリシーを削除
+DROP POLICY IF EXISTS "Users can read their own subscriptions" ON user_subscriptions;
+DROP POLICY IF EXISTS "Users can update their own subscriptions" ON user_subscriptions;
+DROP POLICY IF EXISTS "Users can read their own subscription history" ON subscription_history;
+
+-- 新しいポリシーを作成（Service Roleアクセスを許可）
+-- ユーザーサブスクリプションは本人またはService Roleが読み取り可能
+CREATE POLICY "Users and service role can read subscriptions" ON user_subscriptions
+  FOR SELECT USING (
+    auth.role() = 'service_role' OR 
+    user_id = auth.uid()
+  );
+
+-- ユーザーサブスクリプションの挿入はService Roleのみ可能
+CREATE POLICY "Service role can insert subscriptions" ON user_subscriptions
+  FOR INSERT WITH CHECK (auth.role() = 'service_role');
+
+-- ユーザーサブスクリプションの更新はService Roleまたは本人が可能
+CREATE POLICY "Users and service role can update subscriptions" ON user_subscriptions
+  FOR UPDATE USING (
+    auth.role() = 'service_role' OR 
+    user_id = auth.uid()
+  );
+
+-- ユーザーサブスクリプションの削除はService Roleのみ可能
+CREATE POLICY "Service role can delete subscriptions" ON user_subscriptions
+  FOR DELETE USING (auth.role() = 'service_role');
+
+-- サブスクリプション履歴は本人またはService Roleが読み取り可能
+CREATE POLICY "Users and service role can read subscription history" ON subscription_history
+  FOR SELECT USING (
+    auth.role() = 'service_role' OR 
+    user_id = auth.uid()
+  );
+
+-- サブスクリプション履歴の挿入はService Roleのみ可能
+CREATE POLICY "Service role can insert subscription history" ON subscription_history
+  FOR INSERT WITH CHECK (auth.role() = 'service_role');
+
+-- ルーム作成制限チェック用に、Service Roleがrooms テーブルに完全アクセスできるようにする
+DROP POLICY IF EXISTS "Authenticated users can create rooms" ON rooms;
+
+-- 新しいルーム作成ポリシー
+CREATE POLICY "Authenticated users and service role can create rooms" ON rooms
+  FOR INSERT WITH CHECK (
+    auth.role() = 'service_role' OR 
+    auth.role() = 'authenticated'
+  );
+
+-- Service Role がrooms テーブルを完全に読み取れるようにする
+CREATE POLICY "Service role can read all rooms" ON rooms
+  FOR SELECT USING (auth.role() = 'service_role');
+
+-- Service Role がrooms テーブルを更新・削除できるようにする
+CREATE POLICY "Service role can update rooms" ON rooms
+  FOR UPDATE USING (auth.role() = 'service_role');
+
+CREATE POLICY "Service role can delete rooms" ON rooms
+  FOR DELETE USING (auth.role() = 'service_role');
+
+-- Service Role がroom_participants テーブルに完全アクセスできるようにする
+CREATE POLICY "Service role can manage all room participants" ON room_participants
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- Service Role がmessages テーブルに完全アクセスできるようにする  
+CREATE POLICY "Service role can manage all messages" ON messages
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- Service Role がuser_profiles テーブルに完全アクセスできるようにする
+CREATE POLICY "Service role can manage all user profiles" ON user_profiles
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- Service Role がprofile_views テーブルに完全アクセスできるようにする
+CREATE POLICY "Service role can manage all profile views" ON profile_views
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- Service Role がfile_shares テーブルに完全アクセスできるようにする
+CREATE POLICY "Service role can manage all file shares" ON file_shares
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- Service Role がfile_share_permissions テーブルに完全アクセスできるようにする
+CREATE POLICY "Service role can manage all file share permissions" ON file_share_permissions
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- Service Role がfile_access_logs テーブルに完全アクセスできるようにする
+CREATE POLICY "Service role can manage all file access logs" ON file_access_logs
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- Service Role がsubscription_plans テーブルに完全アクセスできるようにする
+CREATE POLICY "Service role can manage all subscription plans" ON subscription_plans
+  FOR ALL USING (auth.role() = 'service_role');

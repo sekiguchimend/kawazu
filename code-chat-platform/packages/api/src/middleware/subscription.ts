@@ -13,6 +13,7 @@ export interface PlanLimits {
 // プラン制限を取得
 export async function getUserPlanLimits(userId: string): Promise<PlanLimits | null> {
   try {
+    console.log('🔍 Getting plan limits for user:', userId);
     const { data: subscription, error } = await supabase
       .from('user_subscriptions')
       .select(`
@@ -25,7 +26,12 @@ export async function getUserPlanLimits(userId: string): Promise<PlanLimits | nu
       .eq('status', 'active')
       .single();
 
-    if (error || !subscription) {
+    if (error) {
+      console.log('📋 No active subscription found (using default plan):', {
+        message: error.message,
+        code: error.code,
+        userId: userId
+      });
       // デフォルト（無料）プランの制限
       return {
         max_rooms: 1,
@@ -36,9 +42,25 @@ export async function getUserPlanLimits(userId: string): Promise<PlanLimits | nu
       };
     }
 
+    if (!subscription) {
+      console.log('📋 No subscription data found (using default plan)');
+      return {
+        max_rooms: 1,
+        max_participants_per_room: 5,
+        storage_gb: 0.1,
+        advanced_features: false,
+        priority_support: false
+      };
+    }
+
+    console.log('✅ Found active subscription:', subscription.id);
     return subscription.subscription_plans.features as PlanLimits;
   } catch (error) {
-    console.error('Get plan limits error:', error);
+    console.error('❌ Get plan limits error:', {
+      message: error.message,
+      stack: error.stack,
+      userId: userId
+    });
     return null;
   }
 }
@@ -50,15 +72,19 @@ export const checkRoomCreationLimit = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    console.log('🔄 Starting room creation limit check...');
     const userId = req.user?.id;
     
     if (!userId) {
+      console.log('❌ No user ID found in request');
       res.status(401).json({
         success: false,
         error: 'Authentication required'
       });
       return;
     }
+
+    console.log('🔍 User ID confirmed:', userId);
 
     // ユーザーのプラン制限を取得
     const limits = await getUserPlanLimits(userId);
@@ -72,19 +98,34 @@ export const checkRoomCreationLimit = async (
     }
 
     // 現在のルーム数を取得
+    console.log('🔍 Checking room count for user:', userId);
     const { count: currentRoomCount, error } = await supabase
       .from('rooms')
       .select('*', { count: 'exact', head: true })
       .eq('created_by', userId);
 
     if (error) {
-      console.error('Get room count error:', error);
+      console.error('❌ Get room count error:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        userId: userId,
+        fullError: error
+      });
       res.status(500).json({
         success: false,
-        error: 'Failed to check room limits'
+        error: 'Failed to check room limits',
+        debug: {
+          message: error.message,
+          code: error.code,
+          details: error.details
+        }
       });
       return;
     }
+
+    console.log('✅ Room count retrieved successfully:', currentRoomCount);
 
     // 制限チェック
     if (limits.max_rooms !== 'unlimited' && (currentRoomCount || 0) >= limits.max_rooms) {
