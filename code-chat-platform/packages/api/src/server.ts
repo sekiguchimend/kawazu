@@ -27,10 +27,9 @@ const server = createServer(app);
 
 // 環境変数から許可オリジンを取得
 const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [
+  'https://kawazu.vercel.app',
   'https://kawazu-web.vercel.app',
-  'https://kawazu.onrender.com',
-  'https://kawazu-web.vercel.app',
-  'https://*.vercel.app'
+  'https://kawazu.onrender.com'
 ];
 
 const io = new Server(server, {
