@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import { useAuthGuard } from '@/hooks/useAuthGuard';
+import { useAuth } from '@/hooks/useAuth';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -13,6 +15,18 @@ const AuthPage = () => {
   });
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
+  
+  // 認証済みユーザーはダッシュボードにリダイレクト
+  const { isReady } = useAuthGuard({ requireAuth: false });
+
+  if (!isReady) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,8 +66,8 @@ const AuthPage = () => {
       }
 
       if (data.success) {
-        localStorage.setItem('token', data.data.token);
-        localStorage.setItem('user', JSON.stringify(data.data.user));
+        // 認証フックを使用してログイン
+        login(data.data.token, data.data.user);
         
         toast.success(isLogin ? 'ログインしました' : '登録が完了しました');
         router.push('/pricing');

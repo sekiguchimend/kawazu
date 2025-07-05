@@ -29,8 +29,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // 初期化中は素早くローカルストレージから復元
+  const quickRestore = () => {
+    try {
+      const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      
+      if (token && storedUser) {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+        console.log('⚡ Quick restore user:', userData.username);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Quick restore failed:', error);
+      return false;
+    }
+  };
+
   const refreshUser = async () => {
     try {
+      setIsLoading(true);
       const token = localStorage.getItem('token');
       const storedUser = localStorage.getItem('user');
       
@@ -39,6 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
         setProfile(null);
         setIsLoading(false);
+        setIsInitialized(true);
         return;
       }
 
@@ -46,7 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         const userData = JSON.parse(storedUser);
         setUser(userData);
-        console.log('Restored user from localStorage:', userData.username);
+        console.log('✅ Restored user from localStorage:', userData.username);
       } catch (parseError) {
         console.error('Failed to parse stored user data:', parseError);
         localStorage.removeItem('token');
@@ -54,22 +75,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
         setProfile(null);
         setIsLoading(false);
+        setIsInitialized(true);
         return;
       }
 
       // バックグラウンドでトークン検証
       try {
-        console.log('Verifying token...');
+        console.log('🔍 Verifying token...');
         const verifyResult = await verifyToken(token);
         
         if (!verifyResult.success || !verifyResult.data?.valid) {
-          console.log('Token verification failed, clearing auth state');
+          console.log('❌ Token verification failed, clearing auth state');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           setUser(null);
           setProfile(null);
         } else {
-          console.log('Token verification successful');
+          console.log('✅ Token verification successful');
           
           // 検証されたユーザー情報で更新
           const verifiedUser = verifyResult.data.user;
@@ -83,6 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const result = await getCurrentUser();
             if (result.success && result.data) {
               setProfile(result.data.profile);
+              console.log('✅ Profile loaded successfully');
             }
           } catch (profileError) {
             console.error('Failed to get profile, but keeping auth state:', profileError);
@@ -92,10 +115,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error('Token verification error:', error);
         
         // ネットワークエラーの場合は認証状態を維持
-        if (error.message?.includes('fetch') || error.message?.includes('network')) {
-          console.log('Network error during token verification, keeping current session');
+        if (error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Failed to fetch')) {
+          console.log('⚠️ Network error during token verification, keeping current session');
         } else {
           // その他のエラーの場合は認証をクリア
+          console.log('❌ Auth error, clearing session');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           setUser(null);
@@ -115,9 +139,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const login = (token: string, userData: User) => {
-    console.log('Logging in user:', userData.username);
+    console.log('🔐 Logging in user:', userData.username);
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('loginTime', new Date().toISOString());
+    
+    // Cookieにも保存（SSR対応）
+    document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; secure; samesite=strict`;
+    
     setUser(userData);
     setIsLoading(false);
     
@@ -127,6 +156,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const result = await getCurrentUser();
         if (result.success && result.data) {
           setProfile(result.data.profile);
+          console.log('✅ Profile loaded after login');
         }
       } catch (error) {
         console.error('Failed to get profile after login:', error);
@@ -135,19 +165,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
-    console.log('Logging out user');
+    console.log('🚪 Logging out user');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('loginTime');
+    
+    // Cookieもクリア
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    
     setUser(null);
     setProfile(null);
+    setIsLoading(false);
   };
 
   // 初期化時のみ実行
   useEffect(() => {
+    console.log('🔄 AuthProvider initializing...');
     if (!isInitialized) {
+      // 素早く復元してから検証
+      const restored = quickRestore();
+      if (restored) {
+        setIsLoading(false);
+      }
       refreshUser();
     }
   }, [isInitialized]);
+
+  // ページ可視性変更時の認証状態確認
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && user) {
+        console.log('🔄 Page became visible, checking auth state...');
+        refreshUser();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isInitialized, user]);
 
   // 定期的なトークン検証（5分ごと）
   useEffect(() => {
@@ -159,8 +216,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         try {
           const verifyResult = await verifyToken(token);
           if (!verifyResult.success || !verifyResult.data?.valid) {
-            console.log('Token expired during periodic check, logging out');
+            console.log('⏰ Token expired during periodic check, logging out');
             logout();
+          } else {
+            console.log('✅ Periodic token verification successful');
           }
         } catch (error) {
           console.error('Periodic token verification failed:', error);
