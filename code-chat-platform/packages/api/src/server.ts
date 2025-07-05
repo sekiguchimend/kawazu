@@ -23,6 +23,10 @@ import webhooksRouter from './routes/webhooks';
 import { securityMonitor } from './middleware/security';
 
 const app = express();
+
+// Render.comなどのプロキシ環境でのtrust proxy設定
+app.set('trust proxy', true);
+
 const server = createServer(app);
 
 // 環境変数から許可オリジンを取得

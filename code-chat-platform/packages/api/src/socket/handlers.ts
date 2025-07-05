@@ -53,32 +53,49 @@ interface SharedFileUpdateData {
 const authenticateSocket = async (socket: Socket): Promise<any | null> => {
   try {
     const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
-    if (!token) return null;
+    if (!token) {
+      console.log('No token provided in WebSocket connection');
+      return null;
+    }
     
     const JWT_SECRET = process.env.JWT_SECRET;
-    if (!JWT_SECRET) return null;
+    if (!JWT_SECRET) {
+      console.error('JWT_SECRET not configured');
+      return null;
+    }
     
     const decoded = jwt.verify(token, JWT_SECRET) as any;
+    console.log('WebSocket JWT decoded:', { id: decoded.id, username: decoded.username });
     
-    // データベースでユーザー情報を確認
-    const { data: user, error } = await supabase
-      .from('user_profiles')
-      .select('id, username, email, subscription_status')
-      .eq('id', decoded.id)
-      .single();
-
-    if (error || !user) {
+    // auth.usersテーブルでユーザー存在確認
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(decoded.id);
+    
+    if (authError || !authUser.user) {
+      console.log('User not found in auth.users:', authError?.message);
       return null;
     }
 
+    // user_profilesテーブルでプロフィール情報取得（オプション）
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('username, display_name')
+      .eq('username', decoded.username)
+      .single();
+
+    console.log('WebSocket authentication successful:', decoded.username);
+
     return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      subscription_status: user.subscription_status
+      id: decoded.id,
+      email: decoded.email,
+      username: decoded.username,
+      display_name: profile?.display_name || decoded.username,
+      role: decoded.role || 'user'
     };
   } catch (error) {
-    console.error('Socket authentication error:', error);
+    console.error('Socket authentication error:', {
+      message: error.message,
+      name: error.name
+    });
     return null;
   }
 };
@@ -105,20 +122,14 @@ export const handleConnection = (io: Server) => {
   return async (socket: Socket) => {
     console.log(`User connected: ${socket.id}`);
     
-    // 接続時の認証チェック
+    // 接続時の認証チェック（オプション）
     const authUser = await authenticateSocket(socket);
     if (authUser) {
       socket.data.authUser = authUser;
       console.log(`Authenticated user connected: ${authUser.username} (${authUser.id})`);
     } else {
-      console.log(`Unauthenticated user connected: ${socket.id}`);
-      // 認証が必要な場合はエラーを送信
-      socket.emit('error', { 
-        message: 'Authentication required. Please login first.',
-        code: 'AUTH_REQUIRED'
-      });
-      socket.disconnect(true);
-      return;
+      console.log(`Unauthenticated user connected: ${socket.id} (will check auth on room join)`);
+      // 接続は許可し、ルーム参加時に認証チェックを行う
     }
 
     // ルーム参加処理
@@ -144,6 +155,17 @@ export const handleConnection = (io: Server) => {
         }
 
         console.log(`Join room request: ${username} -> ${room_slug}`);
+
+        // 認証チェック（接続時に認証されていない場合は再試行）
+        if (!socket.data.authUser) {
+          const authUser = await authenticateSocket(socket);
+          if (authUser) {
+            socket.data.authUser = authUser;
+            console.log(`User authenticated during room join: ${authUser.username}`);
+          } else {
+            console.log(`Room join without authentication: ${username} -> ${room_slug}`);
+          }
+        }
 
         // ルーム存在確認
         const { data: room, error: roomError } = await supabase
@@ -217,8 +239,9 @@ export const handleConnection = (io: Server) => {
         // socketをルームに追加
         await socket.join(room_slug);
 
-        // ユーザー情報をsocketに保存
+        // ユーザー情報をsocketに保存（既存の認証情報を保持）
         socket.data = {
+          ...socket.data,
           room_slug,
           username,
           room_id: room.id
