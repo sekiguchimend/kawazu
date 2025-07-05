@@ -47,7 +47,7 @@ export function validateEnvironmentConfig(): ConfigValidationResult {
   // 必須環境変数チェック
   const requiredVars = [
     'SUPABASE_URL',
-    'SUPABASE_SERVICE_ROLE_KEY',
+    'SUPABASE_SERVICE_KEY',
     'JWT_SECRET'
   ];
 
@@ -85,7 +85,10 @@ export function validateEnvironmentConfig(): ConfigValidationResult {
   }
 
   // CORS設定チェック
-  const corsOrigins = process.env.CORS_ORIGINS?.split(',') || ['https://kawazu-web.vercel.app'];
+  const corsOrigins = process.env.CORS_ORIGINS?.split(',') || 
+    (process.env.NODE_ENV === 'production' ? 
+      ['https://kawazu.vercel.app', 'https://kawazu-web.vercel.app'] : 
+      ['https://kawazu-web.vercel.app', 'http://localhost:3000']);
   
   const hasLocalhostInProd = corsOrigins.some(origin => origin.includes('localhost'));
   if (hasLocalhostInProd && process.env.NODE_ENV === 'production') {
@@ -105,11 +108,11 @@ export function validateEnvironmentConfig(): ConfigValidationResult {
       port: parseInt(process.env.PORT || '8000'),
       nodeEnv: process.env.NODE_ENV || 'development',
       corsOrigins,
-      frontendUrl: process.env.FRONTEND_URL || 'https://kawazu-web.vercel.app'
+      frontendUrl: process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? 'https://kawazu.vercel.app' : 'https://kawazu-web.vercel.app')
     },
     database: {
       supabaseUrl: process.env.SUPABASE_URL || '',
-      supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+      supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || ''
     },
     auth: {
       jwtSecret: process.env.JWT_SECRET || '',
