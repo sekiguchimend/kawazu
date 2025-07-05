@@ -169,16 +169,22 @@ export const handleConnection = (io: Server) => {
         }
 
         // ルーム存在確認
+        console.log(`🔍 Checking room existence: ${room_slug}`);
         const { data: room, error: roomError } = await supabase
           .from('rooms')
           .select('id, name, is_private, password_hash')
           .eq('slug', room_slug)
           .single();
 
+        console.log(`🔍 Room query result:`, { room, roomError });
+
         if (roomError || !room) {
+          console.log(`❌ Room not found: ${room_slug}, error:`, roomError);
           socket.emit('error', { message: 'Room not found' });
           return;
         }
+
+        console.log(`✅ Room found: ${room.name} (${room.id}), is_private: ${room.is_private}`);
 
         // プライベートルームのパスワード検証
         if (room.is_private) {
