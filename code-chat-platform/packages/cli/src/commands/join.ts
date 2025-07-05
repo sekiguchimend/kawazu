@@ -255,34 +255,87 @@ function setupFileWatcher(
   // 初期内容を読み込み
   readFileContent(codechatFile).then(content => {
     lastContent = content;
+    console.log(chalk.gray('🔍 ファイル監視開始 - 初期ファイルサイズ:'), content.length);
   });
   
   watcher.on('change', async () => {
     try {
+      console.log(chalk.blue('🔍 ファイル変更検出'));
       const currentContent = await readFileContent(codechatFile);
+      console.log(chalk.gray('🔍 現在のファイルサイズ:'), currentContent.length);
+      console.log(chalk.gray('🔍 前回のファイルサイズ:'), lastContent.length);
       
       // 新しく追加された内容を検出
       const newContent = extractNewContent(currentContent, lastContent);
+      console.log(chalk.gray('🔍 抽出された新しいコンテンツ:'), `"${newContent}"`);
       
-      if (newContent) {
+      // デバッグ用：シンプルな差分検出も試してみる
+      const simpleNewContent = currentContent.length > lastContent.length ? 
+        currentContent.substring(lastContent.length).trim() : '';
+      console.log(chalk.gray('🔍 シンプル差分検出結果:'), `"${simpleNewContent}"`);
+      
+      // 入力線以降の部分だけを比較する方法も試してみる
+      const inputLineStart = '------------------------------------------------------------------------------>';
+      const currentInputIndex = currentContent.lastIndexOf(inputLineStart);
+      const lastInputIndex = lastContent.lastIndexOf(inputLineStart);
+      
+      let inputAreaNewContent = '';
+      if (currentInputIndex !== -1 && lastInputIndex !== -1) {
+        const currentInputSection = currentContent.substring(currentInputIndex);
+        const lastInputSection = lastContent.substring(lastInputIndex);
+        
+        if (currentInputSection !== lastInputSection) {
+          // 入力エリアに変更があった場合
+          const currentLines = currentInputSection.split('\n');
+          const lastLines = lastInputSection.split('\n');
+          
+          // 新しい行を検出
+          if (currentLines.length > lastLines.length) {
+            inputAreaNewContent = currentLines.slice(lastLines.length).join('\n').trim();
+          }
+        }
+      }
+      console.log(chalk.gray('🔍 入力エリア差分検出結果:'), `"${inputAreaNewContent}"`);
+      
+      // いずれかの方法で新しいコンテンツが見つかった場合
+      const finalNewContent = newContent || inputAreaNewContent;
+      
+      if (finalNewContent) {
+        console.log(chalk.green('🔍 新しいコンテンツを検出しました'));
+        
         // 行ごとに処理
-        const lines = newContent.split('\n');
+        const lines = finalNewContent.split('\n');
+        console.log(chalk.gray('🔍 処理する行数:'), lines.length);
         
         for (const line of lines) {
           const trimmedLine = line.trim();
+          console.log(chalk.gray('🔍 処理中の行:'), `"${trimmedLine}"`);
           
-          if (!trimmedLine) continue;
+          if (!trimmedLine) {
+            console.log(chalk.gray('🔍 空行のためスキップ'));
+            continue;
+          }
           
           // ファイル共有コマンドをチェック
           if (isFileShareCommand(trimmedLine)) {
+            console.log(chalk.blue('🔍 ファイル共有コマンドを検出'));
             await handleFileShareCommand(trimmedLine, socket, roomId, username);
             continue;
           }
           
           // 通常のメッセージとして送信
           const sanitizedContent = sanitizeMessage(trimmedLine);
+          console.log(chalk.gray('🔍 サニタイズ後のコンテンツ:'), `"${sanitizedContent}"`);
           
           if (sanitizedContent) {
+            console.log(chalk.green('🔍 メッセージを送信中...'));
+            console.log(chalk.gray('🔍 送信データ:'), {
+              room_slug: roomId,
+              username: username,
+              content: sanitizedContent,
+              message_type: detectMessageType(sanitizedContent)
+            });
+            
             socket.emit('send-message', {
               room_slug: roomId,
               username: username,
@@ -290,19 +343,41 @@ function setupFileWatcher(
               message_type: detectMessageType(sanitizedContent)
             });
             
-            // メッセージ送信後に入力エリアをクリア
+            console.log(chalk.green('✅ メッセージ送信完了'));
+            
+            // メッセージ送信後に入力エリアをクリア（一時的にコメントアウト）
+            /*
             setTimeout(async () => {
+              console.log(chalk.gray('🔍 入力エリアをクリア中...'));
               await clearInputArea(codechatFile);
+              console.log(chalk.gray('✅ 入力エリアクリア完了'));
             }, 100);
+            */
+          } else {
+            console.log(chalk.yellow('🔍 サニタイズ後のコンテンツが空のため送信しません'));
           }
         }
+      } else {
+        console.log(chalk.yellow('🔍 新しいコンテンツが見つかりませんでした'));
+        console.log(chalk.gray('🔍 詳細:'));
+        console.log(chalk.gray('  - extractNewContent:'), `"${newContent}"`);
+        console.log(chalk.gray('  - inputAreaNewContent:'), `"${inputAreaNewContent}"`);
       }
       
       lastContent = currentContent;
     } catch (error) {
       console.error(chalk.red('ファイル処理エラー:', error.message));
+      console.error(chalk.red('スタックトレース:'), error.stack);
     }
   });
+  
+  // エラーハンドリング
+  watcher.on('error', (error) => {
+    console.error(chalk.red('ファイル監視エラー:'), error);
+  });
+  
+  console.log(chalk.green('📁 ファイル監視が開始されました'));
+  console.log(chalk.gray('監視対象:'), codechatFile);
   
   // 終了処理
   process.on('SIGINT', () => {

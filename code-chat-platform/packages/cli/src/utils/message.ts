@@ -160,77 +160,135 @@ export function isSystemMessage(line: string): boolean {
 }
 
 export function extractNewContent(currentContent: string, lastContent: string): string {
+  console.log('🔍 extractNewContent 開始');
+  
   // 新しい線形式のマーカーを定義
   const inputLineStart = '------------------------------------------------------------------------------>';
   const separatorLine = '================================================================================';
   
+  console.log('🔍 マーカー定義:', { inputLineStart: inputLineStart.substring(0, 20) + '...', separatorLine: separatorLine.substring(0, 20) + '...' });
+  
   // 現在のコンテンツから入力エリアを抽出
   const currentInputArea = extractInputAreaFromContent(currentContent);
+  console.log('🔍 現在の入力エリア:', `"${currentInputArea}"`);
+  
   if (!currentInputArea) {
+    console.log('🔍 現在の入力エリアが見つかりません');
     return '';
   }
   
   // 前回のコンテンツから入力エリアを抽出
   const lastInputArea = lastContent ? extractInputAreaFromContent(lastContent) : '';
+  console.log('🔍 前回の入力エリア:', `"${lastInputArea}"`);
   
   // 両方のエリアを行に分割してクリーンアップ
   const currentLines = cleanupMessageLines(currentInputArea.split('\n'));
   const lastLines = lastContent ? cleanupMessageLines(lastInputArea.split('\n')) : [];
   
+  console.log('🔍 現在のクリーンな行:', currentLines);
+  console.log('🔍 前回のクリーンな行:', lastLines);
+  
   // 差分を検出して新しいメッセージのみを抽出
   const newLines = detectNewLines(currentLines, lastLines);
+  console.log('🔍 検出された新しい行:', newLines);
   
   // 結果をフィルタリングして返す
-  return newLines.join('\n').trim();
+  const result = newLines.join('\n').trim();
+  console.log('🔍 extractNewContent 結果:', `"${result}"`);
+  
+  return result;
 }
 
 function extractInputAreaFromContent(content: string): string {
+  console.log('🔍 extractInputAreaFromContent 開始');
+  
   const inputLineStart = '------------------------------------------------------------------------------>';
   const separatorLine = '================================================================================';
   
   // 最新の入力線を見つける
   const inputLineIndex = content.lastIndexOf(inputLineStart);
+  console.log('🔍 入力線のインデックス:', inputLineIndex);
+  
   if (inputLineIndex === -1) {
+    console.log('🔍 入力線が見つかりません');
     return '';
   }
   
   // 入力線より前の部分を取得
   const beforeInputLine = content.substring(0, inputLineIndex);
+  console.log('🔍 入力線より前の文字数:', beforeInputLine.length);
   
   // 最後の区切り線を見つける
   const lastSeparatorIndex = beforeInputLine.lastIndexOf(separatorLine);
+  console.log('🔍 最後の区切り線のインデックス:', lastSeparatorIndex);
+  
   if (lastSeparatorIndex === -1) {
+    console.log('🔍 区切り線が見つかりません');
     return '';
   }
   
   // 区切り線から入力線までの内容を抽出
-  return beforeInputLine.substring(lastSeparatorIndex + separatorLine.length);
+  const result = beforeInputLine.substring(lastSeparatorIndex + separatorLine.length);
+  console.log('🔍 抽出された入力エリア:', `"${result}"`);
+  
+  return result;
 }
 
 function cleanupMessageLines(lines: string[]): string[] {
-  return lines
+  console.log('🔍 cleanupMessageLines 開始');
+  console.log('🔍 元の行数:', lines.length);
+  console.log('🔍 元の行:', lines);
+  
+  const result = lines
     .map(line => line.trim())
     .filter(line => {
-      if (!line) return false;
+      if (!line) {
+        console.log('🔍 空行を除外:', `"${line}"`);
+        return false;
+      }
       
       // システムメッセージやガイダンスを除外
-      if (line.includes('💭 チャットを開始しましょう！')) return false;
-      if (line.includes('メッセージを線の上に書き')) return false;
-      if (line.includes('ファイルを保存すると送信されます')) return false;
-      if (line.includes('Ctrl+C で終了')) return false;
+      if (line.includes('💭 チャットを開始しましょう！')) {
+        console.log('🔍 システムメッセージを除外:', `"${line}"`);
+        return false;
+      }
+      if (line.includes('メッセージを線の上に書き')) {
+        console.log('🔍 ガイダンスを除外:', `"${line}"`);
+        return false;
+      }
+      if (line.includes('ファイルを保存すると送信されます')) {
+        console.log('🔍 ガイダンスを除外:', `"${line}"`);
+        return false;
+      }
+      if (line.includes('Ctrl+C で終了')) {
+        console.log('🔍 ガイダンスを除外:', `"${line}"`);
+        return false;
+      }
       
       // コメント行を除外
-      if (isSystemMessage(line)) return false;
+      if (isSystemMessage(line)) {
+        console.log('🔍 システムメッセージを除外:', `"${line}"`);
+        return false;
+      }
       
-      // Kawazuコマンドも含める（ファイル共有コマンドなど）
+      console.log('🔍 有効な行として採用:', `"${line}"`);
       return true;
     });
+  
+  console.log('🔍 cleanupMessageLines 結果:', result);
+  return result;
 }
 
 function detectNewLines(currentLines: string[], lastLines: string[]): string[] {
+  console.log('🔍 detectNewLines 開始');
+  console.log('🔍 現在の行数:', currentLines.length);
+  console.log('🔍 前回の行数:', lastLines.length);
+  
   // 前回の行数より多い場合、新しい行があるということ
   if (currentLines.length > lastLines.length) {
-    return currentLines.slice(lastLines.length);
+    const newLines = currentLines.slice(lastLines.length);
+    console.log('🔍 新しい行を検出（行数増加）:', newLines);
+    return newLines;
   }
   
   // 同じ長さの場合、最後の行が変更されているかチェック
@@ -238,12 +296,18 @@ function detectNewLines(currentLines: string[], lastLines: string[]): string[] {
     const lastCurrentLine = currentLines[currentLines.length - 1];
     const lastPreviousLine = lastLines.length > 0 ? lastLines[lastLines.length - 1] : '';
     
+    console.log('🔍 最後の行の比較:');
+    console.log('🔍 現在の最後の行:', `"${lastCurrentLine}"`);
+    console.log('🔍 前回の最後の行:', `"${lastPreviousLine}"`);
+    
     if (lastCurrentLine !== lastPreviousLine) {
       // 最後の行が変更されている場合、その行のみを返す
+      console.log('🔍 最後の行が変更されました:', [lastCurrentLine]);
       return [lastCurrentLine];
     }
   }
   
+  console.log('🔍 新しい行は見つかりませんでした');
   return [];
 }
 
