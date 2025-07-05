@@ -62,7 +62,7 @@ app.use(helmet({
   }
 }));
 
-// レート制限
+// レート制限（プロキシ環境対応）
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15分
   max: 100, // 最大リクエスト数
@@ -72,15 +72,22 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // trust proxy警告を回避するためのスキップ設定
+  // プロキシ環境での安全なIP取得
   keyGenerator: (req) => {
-    // X-Forwarded-Forヘッダーが存在する場合は最初のIPを使用
+    // Render.comなどでは、true-client-ipまたはcf-connecting-ipが信頼できる
+    const trustedIp = req.get('true-client-ip') || req.get('cf-connecting-ip');
+    if (trustedIp) {
+      return trustedIp;
+    }
+    
+    // X-Forwarded-Forヘッダーの最初のIPを使用（但し、信頼できるプロキシからの場合のみ）
     const forwarded = req.get('X-Forwarded-For');
     if (forwarded) {
       return forwarded.split(',')[0].trim();
     }
-    // 通常のIPを使用
-    return req.ip;
+    
+    // フォールバック：req.ipを使用
+    return req.ip || req.connection.remoteAddress || 'unknown';
   },
   skip: (req) => {
     // ヘルスチェックなどの特定のエンドポイントをスキップ
@@ -88,18 +95,24 @@ const limiter = rateLimit({
   }
 });
 
-// スローダウン
+// スローダウン（プロキシ環境対応）
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
   delayAfter: 50,
   delayMs: () => 500,
-  // 同じく IP 取得の設定
+  // rate limiterと同じIP取得ロジック
   keyGenerator: (req) => {
+    const trustedIp = req.get('true-client-ip') || req.get('cf-connecting-ip');
+    if (trustedIp) {
+      return trustedIp;
+    }
+    
     const forwarded = req.get('X-Forwarded-For');
     if (forwarded) {
       return forwarded.split(',')[0].trim();
     }
-    return req.ip;
+    
+    return req.ip || req.connection.remoteAddress || 'unknown';
   }
 });
 
