@@ -47,7 +47,7 @@ export function validateEnvironmentConfig(): ConfigValidationResult {
   // 必須環境変数チェック
   const requiredVars = [
     'SUPABASE_URL',
-    'SUPABASE_SERVICE_KEY',
+    'SUPABASE_SERVICE_ROLE_KEY',
     'JWT_SECRET'
   ];
 
@@ -109,7 +109,7 @@ export function validateEnvironmentConfig(): ConfigValidationResult {
     },
     database: {
       supabaseUrl: process.env.SUPABASE_URL || '',
-      supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || ''
+      supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || ''
     },
     auth: {
       jwtSecret: process.env.JWT_SECRET || '',
