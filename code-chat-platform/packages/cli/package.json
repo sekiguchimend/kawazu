@@ -1,6 +1,6 @@
 {
   "name": "kawazu",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "kawazu CLI tool for real-time chat in your editor",
   "main": "dist/index.js",
   "bin": {
@@ -39,14 +39,14 @@
     "collaboration",
     "pair-programming"
   ],
-  "author": "Your Name",
+  "author": "sekiguchimend",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-username/kawazu.git"
+    "url": "git+https://github.com/sekiguchimend/kawazu.git"
   },
-  "homepage": "https://github.com/your-username/kawazu#readme",
+  "homepage": "https://github.com/sekiguchimend/kawazu#readme",
   "bugs": {
-    "url": "https://github.com/your-username/kawazu/issues"
+    "url": "https://github.com/sekiguchimend/kawazu/issues"
   }
 }
