@@ -99,10 +99,85 @@ export const checkRoomCreationLimit = async (
 
     // 現在のルーム数を取得
     console.log('🔍 Checking room count for user:', userId);
-    const { count: currentRoomCount, error } = await supabase
-      .from('rooms')
-      .select('*', { count: 'exact', head: true })
-      .eq('created_by', userId);
+
+    // 詳細なデバッグログを追加
+    console.log('🔍 About to execute rooms query with filters:', {
+      userId,
+      created_by: userId
+    });
+
+    // 複数のアプローチでルーム数を取得
+    let currentRoomCount = 0;
+    let error = null;
+    let data = null;
+
+    try {
+      // 方法1: 標準的な count クエリ
+      const result1 = await supabase
+        .from('rooms')
+        .select('id, name, slug, created_by', { count: 'exact' })
+        .eq('created_by', userId);
+
+      console.log('🔍 Method 1 result:', {
+        count: result1.count,
+        error: result1.error ? {
+          message: result1.error.message,
+          details: result1.error.details,
+          hint: result1.error.hint,
+          code: result1.error.code
+        } : null,
+        dataLength: result1.data ? result1.data.length : 0
+      });
+
+      if (result1.error) {
+        error = result1.error;
+      } else {
+        currentRoomCount = result1.count || 0;
+        data = result1.data;
+      }
+
+      // 方法2: データを取得してから count（バックアップ）
+      if (error) {
+        console.log('🔍 Method 1 failed, trying method 2...');
+        const result2 = await supabase
+          .from('rooms')
+          .select('id')
+          .eq('created_by', userId);
+
+        console.log('🔍 Method 2 result:', {
+          error: result2.error ? {
+            message: result2.error.message,
+            details: result2.error.details,
+            hint: result2.error.hint,
+            code: result2.error.code
+          } : null,
+          dataLength: result2.data ? result2.data.length : 0
+        });
+
+        if (result2.error) {
+          error = result2.error;
+        } else {
+          currentRoomCount = result2.data?.length || 0;
+          error = null;
+        }
+      }
+
+    } catch (catchError) {
+      console.error('🔍 Exception caught during room count query:', catchError);
+      error = catchError;
+    }
+
+    console.log('🔍 Final room query result:', {
+      count: currentRoomCount,
+      error: error ? {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      } : null,
+      dataLength: data ? data.length : 0,
+      data: data ? data.map(r => ({ id: r.id, name: r.name, slug: r.slug })) : null
+    });
 
     if (error) {
       console.error('❌ Get room count error:', {

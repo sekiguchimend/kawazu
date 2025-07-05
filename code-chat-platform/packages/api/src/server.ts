@@ -72,13 +72,35 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // trust proxy警告を回避するためのスキップ設定
+  keyGenerator: (req) => {
+    // X-Forwarded-Forヘッダーが存在する場合は最初のIPを使用
+    const forwarded = req.get('X-Forwarded-For');
+    if (forwarded) {
+      return forwarded.split(',')[0].trim();
+    }
+    // 通常のIPを使用
+    return req.ip;
+  },
+  skip: (req) => {
+    // ヘルスチェックなどの特定のエンドポイントをスキップ
+    return req.path === '/health' || req.path === '/api';
+  }
 });
 
 // スローダウン
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
   delayAfter: 50,
-  delayMs: () => 500
+  delayMs: () => 500,
+  // 同じく IP 取得の設定
+  keyGenerator: (req) => {
+    const forwarded = req.get('X-Forwarded-For');
+    if (forwarded) {
+      return forwarded.split(',')[0].trim();
+    }
+    return req.ip;
+  }
 });
 
 app.use(limiter);
