@@ -13,6 +13,16 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
+  },
+  global: {
+    headers: {
+      'Authorization': `Bearer ${supabaseServiceKey}`,
+      'apikey': supabaseServiceKey,
+      'Prefer': 'return=minimal'
+    }
+  },
+  db: {
+    schema: 'public'
   }
 });
 
@@ -69,6 +79,17 @@ export async function testConnection(): Promise<boolean> {
     
     console.log('✅ Database connection successful');
     console.log('🔍 Query result:', data);
+    console.log('🔍 Rooms count:', count);
+    
+    // サービスロール権限のテスト
+    console.log('🔍 Testing service role permissions...');
+    const { data: roleData, error: roleError } = await supabase.rpc('auth_role');
+    if (roleError) {
+      console.log('🔍 Service role test failed (expected for client connections):', roleError.message);
+    } else {
+      console.log('🔍 Current role:', roleData);
+    }
+    
     return true;
   } catch (error) {
     console.error('❌ Database connection error (caught exception):', {
