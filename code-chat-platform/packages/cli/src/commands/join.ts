@@ -63,7 +63,11 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
       }
     });
     
-    spinner.text = 'サーバーに接続中...';
+    if (spinner) {
+      spinner.text = 'サーバーに接続中...';
+    } else {
+      console.log(chalk.blue('🔍 サーバーに接続中...'));
+    }
     
     // 接続エラーハンドリング
     socket.on('connect_error', (error) => {

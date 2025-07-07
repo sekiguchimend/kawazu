@@ -135,11 +135,14 @@ export const handleConnection = (io: Server) => {
     // ルーム参加処理
     socket.on('join-room', async (rawData: JoinRoomData) => {
       try {
+        console.log(`🔍 [${socket.id}] join-room イベント受信:`, rawData);
         const data = sanitizeInput(rawData);
         const { room_slug, username, password } = data;
+        console.log(`🔍 [${socket.id}] サニタイズ後データ:`, { room_slug, username, password: password ? '***' : undefined });
 
         // 入力検証
         if (!room_slug || !username) {
+          console.log(`❌ [${socket.id}] 入力検証エラー: room_slug=${room_slug}, username=${username}`);
           socket.emit('error', { message: 'Room slug and username are required' });
           return;
         }
@@ -255,6 +258,7 @@ export const handleConnection = (io: Server) => {
         };
 
         // 参加成功通知
+        console.log(`✅ [${socket.id}] ルーム参加成功: ${username} -> ${room_slug}`);
         socket.emit('joined-room', {
           room: {
             id: room.id,
@@ -263,6 +267,7 @@ export const handleConnection = (io: Server) => {
           },
           username
         });
+        console.log(`📤 [${socket.id}] joined-room イベント送信完了`);
 
         // 他の参加者に通知
         socket.to(room_slug).emit('user-joined', {
@@ -282,7 +287,11 @@ export const handleConnection = (io: Server) => {
         console.log(`${username} joined room ${room_slug}`);
 
       } catch (error) {
-        console.error('Join room error:', error);
+        console.error(`❌ [${socket.id}] Join room エラー:`, {
+          message: error.message,
+          stack: error.stack,
+          rawData
+        });
         socket.emit('error', { message: 'Internal server error' });
       }
     });

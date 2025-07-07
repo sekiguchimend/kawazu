@@ -3,6 +3,7 @@
 
 -- サンプルルーム作成
 INSERT INTO rooms (name, slug, is_private, created_at) VALUES
+  ('初期化ルーム', 'init', false, NOW()),
   ('プロジェクト会議', 'project-meeting', false, NOW()),
   ('コードレビュー', 'code-review', false, NOW()),
   ('開発チーム雑談', 'dev-team-chat', false, NOW()),
