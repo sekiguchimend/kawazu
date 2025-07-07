@@ -54,35 +54,40 @@ const authenticateSocket = async (socket: Socket): Promise<any | null> => {
   try {
     const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
     if (!token) {
-      console.log('No token provided in WebSocket connection');
+      console.log(`🔍 [${socket.id}] No token provided in WebSocket connection`);
       return null;
     }
     
     const JWT_SECRET = process.env.JWT_SECRET;
     if (!JWT_SECRET) {
-      console.error('JWT_SECRET not configured');
+      console.error(`❌ [${socket.id}] JWT_SECRET not configured`);
       return null;
     }
     
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    console.log('WebSocket JWT decoded:', { id: decoded.id, username: decoded.username });
+    console.log(`🔍 [${socket.id}] WebSocket JWT decoded:`, { id: decoded.id, username: decoded.username });
     
-    // auth.usersテーブルでユーザー存在確認
-    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(decoded.id);
-    
-    if (authError || !authUser.user) {
-      console.log('User not found in auth.users:', authError?.message);
-      return null;
+    // JWTトークンの検証が成功した場合、Supabase Authはスキップして軽量認証を使用
+    // 必要に応じてuser_profilesテーブルから追加情報を取得
+    let profile = null;
+    try {
+      const { data: profileData, error: profileError } = await Promise.race([
+        supabase
+          .from('user_profiles')
+          .select('username, display_name')
+          .eq('username', decoded.username)
+          .single(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Profile query timeout')), 3000))
+      ]);
+      
+      if (!profileError) {
+        profile = profileData;
+      }
+    } catch (profileError) {
+      console.log(`⚠️ [${socket.id}] Profile query failed (continuing anyway):`, profileError.message);
     }
 
-    // user_profilesテーブルでプロフィール情報取得（オプション）
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('username, display_name')
-      .eq('username', decoded.username)
-      .single();
-
-    console.log('WebSocket authentication successful:', decoded.username);
+    console.log(`✅ [${socket.id}] WebSocket authentication successful:`, decoded.username);
 
     return {
       id: decoded.id,
@@ -92,9 +97,10 @@ const authenticateSocket = async (socket: Socket): Promise<any | null> => {
       role: decoded.role || 'user'
     };
   } catch (error) {
-    console.error('Socket authentication error:', {
+    console.error(`❌ [${socket.id}] Socket authentication error:`, {
       message: error.message,
-      name: error.name
+      name: error.name,
+      stack: error.stack
     });
     return null;
   }
@@ -120,17 +126,21 @@ const sanitizeInput = (input: any): any => {
 
 export const handleConnection = (io: Server) => {
   return async (socket: Socket) => {
-    console.log(`User connected: ${socket.id}`);
+    console.log(`🔗 [${socket.id}] User connected`);
     
-    // 接続時の認証チェック（オプション）
-    const authUser = await authenticateSocket(socket);
-    if (authUser) {
-      socket.data.authUser = authUser;
-      console.log(`Authenticated user connected: ${authUser.username} (${authUser.id})`);
-    } else {
-      console.log(`Unauthenticated user connected: ${socket.id} (will check auth on room join)`);
-      // 接続は許可し、ルーム参加時に認証チェックを行う
-    }
+    // 接続後認証を非同期で実行（接続を維持）
+    authenticateSocket(socket)
+      .then(authUser => {
+        if (authUser) {
+          socket.data.authUser = authUser;
+          console.log(`✅ [${socket.id}] Authenticated user connected: ${authUser.username} (${authUser.id})`);
+        } else {
+          console.log(`⚠️ [${socket.id}] Unauthenticated user connected (will check auth on room join)`);
+        }
+      })
+      .catch((error: any) => {
+        console.log(`⚠️ [${socket.id}] Authentication failed (will retry on room join):`, error?.message || error);
+      });
 
     // ルーム参加処理
     socket.on('join-room', async (rawData: JoinRoomData) => {
@@ -162,12 +172,21 @@ export const handleConnection = (io: Server) => {
 
         // 認証チェック（接続時に認証されていない場合は再試行）
         if (!socket.data.authUser) {
-          const authUser = await authenticateSocket(socket);
-          if (authUser) {
-            socket.data.authUser = authUser;
-            console.log(`User authenticated during room join: ${authUser.username}`);
-          } else {
-            console.log(`Room join without authentication: ${username} -> ${room_slug}`);
+          console.log(`🔍 [${socket.id}] 再認証を試行中...`);
+          try {
+            const authUser = await Promise.race([
+              authenticateSocket(socket),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Authentication timeout')), 5000))
+            ]);
+            
+            if (authUser) {
+              socket.data.authUser = authUser;
+              console.log(`✅ [${socket.id}] User authenticated during room join: ${authUser.username}`);
+            } else {
+              console.log(`⚠️ [${socket.id}] Room join without authentication: ${username} -> ${room_slug}`);
+            }
+          } catch (authError) {
+            console.log(`⚠️ [${socket.id}] Authentication failed during room join: ${authError.message}, continuing anyway`);
           }
         }
 

@@ -54,13 +54,20 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
     
     // WebSocket接続（認証トークン付き）
     const socket = io(config.server_url, {
-      timeout: 30000,
-      transports: ['polling', 'websocket'],
+      timeout: 15000,
+      transports: ['websocket', 'polling'],
       forceNew: true,
       autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: 3,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 5000,
+      randomizationFactor: 0.5,
       auth: {
         token: config.auth_token
-      }
+      },
+      upgrade: true,
+      rememberUpgrade: true
     });
     
     if (spinner) {
@@ -91,8 +98,17 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
     });
     
     // 切断イベント
-    socket.on('disconnect', (reason) => {
+    socket.on('disconnect', (reason, details) => {
       console.log(chalk.yellow(`🔍 WebSocket切断: ${reason}`));
+      if (details) {
+        console.log(chalk.gray('🔍 切断詳細:'), details);
+      }
+      
+      // 参加前の切断の場合はエラーとして扱う
+      if (!roomJoined && reason !== 'io client disconnect') {
+        console.error(chalk.red('❌ ルーム参加前に接続が切断されました'));
+        console.log(chalk.yellow('💡 サーバー側で認証処理に問題がある可能性があります'));
+      }
     });
     
     // 再接続イベント
@@ -142,15 +158,27 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
       }
       console.log(chalk.blue('🔍 WebSocket接続成功'));
       
-      // ルーム参加リクエスト
-      const joinData = {
-        room_slug: roomId,
-        username: username,
-        password: options.password
-      };
-      console.log(chalk.blue('🔍 join-roomリクエスト送信:'), joinData);
-      
-      socket.emit('join-room', joinData);
+      // 接続安定化のため少し待ってからリクエスト送信
+      setTimeout(() => {
+        if (!socket.connected) {
+          console.log(chalk.red('🔍 Socket disconnected, aborting join request'));
+          return;
+        }
+        
+        // ルーム参加リクエスト
+        const joinData = {
+          room_slug: roomId,
+          username: username,
+          password: options.password
+        };
+        console.log(chalk.blue('🔍 join-roomリクエスト送信:'), joinData);
+        console.log(chalk.blue('🔍 Socket状態:'), { 
+          connected: socket.connected,
+          id: socket.id 
+        });
+        
+        socket.emit('join-room', joinData);
+      }, 1000); // 1秒待機に延長
     });
     
     // ルーム参加成功
