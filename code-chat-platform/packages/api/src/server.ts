@@ -197,6 +197,23 @@ const PORT = process.env.PORT || 8000;
 async function startServer() {
   console.log('🚀 Starting Kawazu API Server...');
   
+  // 重要な環境変数の検証
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    console.error('❌ JWT_SECRET環境変数が設定されていません');
+    console.error('💡 Render.comのダッシュボードでJWT_SECRETを設定してください');
+    console.error('💡 64文字以上のランダムな文字列を使用してください');
+    process.exit(1);
+  }
+  
+  if (jwtSecret.length < 64) {
+    console.error('❌ JWT_SECRETが短すぎます（現在: ' + jwtSecret.length + '文字）');
+    console.error('💡 セキュリティのため64文字以上の文字列を使用してください');
+    process.exit(1);
+  }
+  
+  console.log('✅ JWT_SECRET検証完了');
+  
   // 設定検証と表示
   printConfigStatus();
   const config = getAppConfig();
@@ -204,7 +221,9 @@ async function startServer() {
   // データベース接続テスト
   const dbConnected = await testConnection();
   if (!dbConnected) {
-    console.warn('⚠️  Database connection failed, but server will continue');
+    console.error('❌ データベース接続に失敗しました');
+    console.error('💡 SUPABASE_URLとSUPABASE_SERVICE_KEYの設定を確認してください');
+    process.exit(1);
   }
   
   server.listen(PORT, () => {
@@ -214,6 +233,7 @@ async function startServer() {
     console.log(`🌐 CORS origins: ${config.server.corsOrigins.join(', ')}`);
     console.log(`💳 Payments: ${config.stripe.isConfigured ? 'Enabled' : 'Disabled'}`);
     console.log(`🛡️  Security: ${config.security.enableHttps ? 'HTTPS' : 'HTTP'} mode`);
+    console.log('✅ サーバー起動完了 - WebSocket接続を受け付けています');
   });
 }
 

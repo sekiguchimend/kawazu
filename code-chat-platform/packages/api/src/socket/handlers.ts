@@ -126,7 +126,12 @@ const sanitizeInput = (input: any): any => {
 
 export const handleConnection = (io: Server) => {
   return async (socket: Socket) => {
-    console.log(`🔗 [${socket.id}] User connected`);
+    console.log(`🔗 [${socket.id}] User connected: ${socket.handshake.address} via ${socket.conn.transport.name}`);
+    console.log(`🔍 [${socket.id}] Connection headers:`, {
+      userAgent: socket.handshake.headers['user-agent'],
+      referer: socket.handshake.headers.referer,
+      origin: socket.handshake.headers.origin
+    });
     
     // 接続後認証を非同期で実行（接続を維持）
     authenticateSocket(socket)
@@ -140,7 +145,23 @@ export const handleConnection = (io: Server) => {
       })
       .catch((error: any) => {
         console.log(`⚠️ [${socket.id}] Authentication failed (will retry on room join):`, error?.message || error);
+        console.log(`🔍 [${socket.id}] Authentication error details:`, {
+          name: error?.name,
+          stack: error?.stack,
+          token: !!socket.handshake.auth.token,
+          jwtSecret: !!process.env.JWT_SECRET
+        });
       });
+
+    // 接続エラーハンドリング
+    socket.on('connect_error', (error: any) => {
+      console.error(`❌ [${socket.id}] Socket connection error:`, {
+        message: error.message || 'Unknown error',
+        name: error.name || 'Unknown',
+        stack: error.stack || 'No stack trace',
+        type: error.type || typeof error
+      });
+    });
 
     // ルーム参加処理
     socket.on('join-room', async (rawData: JoinRoomData) => {
@@ -407,9 +428,31 @@ export const handleConnection = (io: Server) => {
     });
 
     // 切断処理
-    socket.on('disconnect', async (reason) => {
+    socket.on('disconnect', async (reason, details) => {
       try {
-        console.log(`User disconnected: ${socket.id}, reason: ${reason}`);
+        console.log(`🔌 [${socket.id}] User disconnected: ${reason}`);
+        console.log(`🔍 [${socket.id}] Disconnect details:`, {
+          reason,
+          details,
+          authUser: socket.data?.authUser?.username || 'none',
+          room: socket.data?.room_slug || 'none',
+          connectionTime: Date.now() - (typeof socket.handshake.time === 'number' ? socket.handshake.time : Date.now()),
+          transport: socket.conn.transport.name
+        });
+
+        // 切断原因の分析
+        if (reason === 'transport close') {
+          console.log(`🔍 [${socket.id}] Transport close - クライアント側で接続が閉じられました`);
+          if (!socket.data?.room_slug) {
+            console.log(`⚠️ [${socket.id}] ルーム参加前の切断 - 認証やDB接続に問題がある可能性があります`);
+          }
+        } else if (reason === 'client namespace disconnect') {
+          console.log(`🔍 [${socket.id}] Client disconnect - 正常な切断`);
+        } else if (reason === 'ping timeout') {
+          console.log(`🔍 [${socket.id}] Ping timeout - ネットワーク接続の問題`);
+        } else if (reason === 'transport error') {
+          console.log(`🔍 [${socket.id}] Transport error - WebSocket接続エラー`);
+        }
 
         if (socket.data?.room_slug && socket.data?.username) {
           const { room_slug, username, room_id } = socket.data;
@@ -427,10 +470,15 @@ export const handleConnection = (io: Server) => {
             left_at: new Date().toISOString()
           });
 
-          console.log(`${username} left room ${room_slug}`);
+          console.log(`✅ [${socket.id}] ${username} left room ${room_slug}`);
+        } else {
+          console.log(`⚠️ [${socket.id}] 切断時にルーム情報がありません`);
         }
       } catch (error) {
-        console.error('Disconnect error:', error);
+        console.error(`❌ [${socket.id}] Disconnect error:`, {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : 'No stack trace'
+        });
       }
     });
 
