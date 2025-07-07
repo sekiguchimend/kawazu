@@ -71,20 +71,17 @@ const authenticateSocket = async (socket: Socket): Promise<any | null> => {
     // 必要に応じてuser_profilesテーブルから追加情報を取得
     let profile = null;
     try {
-      const { data: profileData, error: profileError } = await Promise.race([
-        supabase
-          .from('user_profiles')
-          .select('username, display_name')
-          .eq('username', decoded.username)
-          .single(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Profile query timeout')), 3000))
-      ]);
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('username, display_name')
+        .eq('username', decoded.username)
+        .single();
       
-      if (!profileError) {
+      if (!profileError && profileData) {
         profile = profileData;
       }
-    } catch (profileError) {
-      console.log(`⚠️ [${socket.id}] Profile query failed (continuing anyway):`, profileError.message);
+    } catch (profileError: any) {
+      console.log(`⚠️ [${socket.id}] Profile query failed (continuing anyway):`, profileError?.message || 'Unknown error');
     }
 
     console.log(`✅ [${socket.id}] WebSocket authentication successful:`, decoded.username);
