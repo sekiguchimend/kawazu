@@ -60,22 +60,22 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
       console.log(chalk.blue(`📄 新しいチャットファイルを作成しました`));
     }
     
-    // WebSocket接続（認証トークン付き）
+    // WebSocket接続（認証トークン付き・安定性重視設定）
     const socket = io(config.server_url, {
-      timeout: 15000,
-      transports: ['websocket', 'polling'],
-      forceNew: true,
+      timeout: 30000, // 接続タイムアウトを30秒に延長
+      transports: ['polling', 'websocket'], // pollingを優先して安定性を重視
+      forceNew: false, // 既存接続の再利用を許可
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 3,
-      reconnectionDelay: 2000,
-      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 10, // 再接続試行回数を増加
+      reconnectionDelay: 1000, // 初回再接続を早める
+      reconnectionDelayMax: 10000, // 最大遅延を延長
       randomizationFactor: 0.5,
       auth: {
         token: config.auth_token
       },
       upgrade: true,
-      rememberUpgrade: true
+      rememberUpgrade: false // アップグレード記憶を無効化（安定性重視）
     });
     
     if (spinner) {
@@ -246,11 +246,29 @@ function setupSocketListeners(socket: Socket, codechatFile: string, currentUsern
   // 新しいメッセージを受信
   socket.on('new-message', async (message) => {
     try {
+      console.log(chalk.blue('🔍 new-messageイベント受信:'), {
+        type: typeof message,
+        isNull: message === null,
+        isUndefined: message === undefined,
+        data: message
+      });
+
       // メッセージの有効性をチェック
       if (!message || typeof message !== 'object' || !message.username || !message.content) {
-        console.log(chalk.yellow('⚠️ 無効なメッセージを受信しました:'), message);
+        console.log(chalk.yellow('⚠️ 無効なメッセージを受信しました:'), {
+          message,
+          hasUsername: message && message.username,
+          hasContent: message && message.content,
+          messageType: typeof message
+        });
         return;
       }
+
+      console.log(chalk.green('✅ 有効なメッセージを受信:'), {
+        username: message.username,
+        content: message.content,
+        created_at: message.created_at
+      });
 
       const isOwnMessage = message.username === currentUsername;
       const formattedMessage = formatMessage(
@@ -261,9 +279,11 @@ function setupSocketListeners(socket: Socket, codechatFile: string, currentUsern
       );
       
       await appendMessageToFile(codechatFile, formattedMessage);
+      console.log(chalk.green('📝 メッセージをファイルに追加しました'));
     } catch (error) {
       console.error(chalk.red('メッセージ処理エラー:'), error.message);
       console.log(chalk.gray('受信したメッセージ:'), JSON.stringify(message, null, 2));
+      console.log(chalk.gray('エラースタック:'), error.stack);
     }
   });
 

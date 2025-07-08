@@ -41,7 +41,16 @@ const io = new Server(server, {
     origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true
-  }
+  },
+  // 接続安定性を向上させる設定
+  pingTimeout: 60000, // ping timeout を1分に延長
+  pingInterval: 25000, // ping interval を25秒に設定
+  upgradeTimeout: 10000, // アップグレードタイムアウトを10秒に設定
+  maxHttpBufferSize: 1e6, // バッファサイズを拡大（1MB）
+  allowEIO3: true, // 古いEngine.IOバージョンとの互換性
+  transports: ['polling', 'websocket'], // pollingを優先
+  allowUpgrades: true,
+  cookie: false // セッションCookieを無効化（よりステートレス）
 });
 
 // セキュリティミドルウェア

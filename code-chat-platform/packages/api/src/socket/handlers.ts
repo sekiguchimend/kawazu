@@ -524,6 +524,14 @@ export const handleConnection = (io: Server) => {
         }
 
         // データベースに保存
+        console.log(`🔍 [${socket.id}] メッセージ保存開始:`, {
+          room_id: socket.data.room_id,
+          user_id: socket.data.authUser?.id || null,
+          username,
+          content: trimmedContent,
+          message_type
+        });
+
         const { data: message, error } = await supabase
           .from('messages')
           .insert({
@@ -542,16 +550,84 @@ export const handleConnection = (io: Server) => {
           `)
           .single();
 
+        console.log(`🔍 [${socket.id}] メッセージ保存結果:`, {
+          success: !error,
+          error: error ? error.message : null,
+          message: message || null
+        });
+
         if (error) {
-          console.error('Send message error:', error);
+          console.error(`❌ [${socket.id}] メッセージ保存エラー:`, error);
           socket.emit('error', { message: 'Failed to send message' });
           return;
         }
 
-        // ルーム内の全員に配信
-        io.to(room_slug).emit('new-message', message);
+        if (!message) {
+          console.error(`❌ [${socket.id}] メッセージオブジェクトがnull`);
+          socket.emit('error', { message: 'Message object is null' });
+          return;
+        }
 
-        console.log(`Message sent in ${room_slug}: ${username}`);
+        // メッセージの有効性チェック
+        if (!message.username || !message.content) {
+          console.error(`❌ [${socket.id}] 無効なメッセージオブジェクト:`, message);
+          socket.emit('error', { message: 'Invalid message object' });
+          return;
+        }
+
+        console.log(`📤 [${socket.id}] new-messageイベント送信:`, {
+          room_slug,
+          message: {
+            id: message.id,
+            username: message.username,
+            content: message.content,
+            message_type: message.message_type,
+            created_at: message.created_at
+          }
+        });
+
+        // ルーム内の参加者状況を確認
+        const room = io.sockets.adapter.rooms.get(room_slug);
+        const roomSockets = room ? Array.from(room) : [];
+        
+        console.log(`🔍 [${socket.id}] Socket.IOルーム状況:`, {
+          room_slug,
+          roomExists: !!room,
+          totalSockets: roomSockets.length,
+          socketIds: roomSockets,
+          currentSocketInRoom: roomSockets.includes(socket.id)
+        });
+
+        // 現在のsocketがルームに参加していない場合は再参加
+        if (!roomSockets.includes(socket.id)) {
+          console.log(`⚠️ [${socket.id}] Socket.IOルームに参加していない - 再参加実行`);
+          await socket.join(room_slug);
+          console.log(`✅ [${socket.id}] Socket.IOルームに再参加完了`);
+          
+          // 再参加後の状況確認
+          const updatedRoom = io.sockets.adapter.rooms.get(room_slug);
+          const updatedRoomSockets = updatedRoom ? Array.from(updatedRoom) : [];
+          console.log(`🔍 [${socket.id}] 再参加後のルーム状況:`, {
+            totalSockets: updatedRoomSockets.length,
+            socketIds: updatedRoomSockets,
+            currentSocketInRoom: updatedRoomSockets.includes(socket.id)
+          });
+        }
+
+        // ルーム内の全員に配信（送信者を含む）
+        io.to(room_slug).emit('new-message', message);
+        
+        // 送信者にも確実に配信（念のため）
+        socket.emit('new-message', message);
+        
+        console.log(`📤 [${socket.id}] メッセージ配信完了:`, {
+          room_slug,
+          username,
+          content: trimmedContent.substring(0, 50) + (trimmedContent.length > 50 ? '...' : ''),
+          messageId: message.id
+        });
+
+        console.log(`✅ [${socket.id}] Message sent in ${room_slug}: ${username}`);
 
       } catch (error) {
         console.error('Send message error:', error);

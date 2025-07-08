@@ -91,8 +91,12 @@ async function updateUsernameInExistingFile(filePath: string, newUsername: strin
 
 export async function appendMessageToFile(filePath: string, message: string): Promise<void> {
   try {
+    console.log(`🔍 ファイル書き込み開始: ${path.basename(filePath)}`);
+    console.log(`📝 追加するメッセージ: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"`);
+    
     // ファイルの内容を読み取り
     const currentContent = await fs.readFile(filePath, 'utf8');
+    console.log(`📂 現在のファイルサイズ: ${currentContent.length}文字`);
     
     // 新しい形式の境界を特定
     const headerEnd = '================================================================================';
@@ -102,6 +106,14 @@ export async function appendMessageToFile(filePath: string, message: string): Pr
     const secondHeaderIndex = currentContent.indexOf(headerEnd, firstHeaderIndex + 1);
     const thirdHeaderIndex = currentContent.indexOf(headerEnd, secondHeaderIndex + 1);
     const inputLineIndex = currentContent.lastIndexOf(inputLineStart);
+    
+    console.log(`🔍 ファイル構造解析:`, {
+      firstHeaderIndex,
+      secondHeaderIndex, 
+      thirdHeaderIndex,
+      inputLineIndex,
+      validStructure: firstHeaderIndex !== -1 && secondHeaderIndex !== -1 && thirdHeaderIndex !== -1 && inputLineIndex !== -1
+    });
     
     if (firstHeaderIndex !== -1 && secondHeaderIndex !== -1 && thirdHeaderIndex !== -1 && inputLineIndex !== -1) {
       // ヘッダー部分
@@ -113,26 +125,57 @@ export async function appendMessageToFile(filePath: string, message: string): Pr
       // フッター部分（入力エリア以降）
       const footerStart = currentContent.substring(thirdHeaderIndex);
       
+      console.log(`🔍 ファイル構造分割完了:`, {
+        headerLength: headerPart.length,
+        messagePartLength: messagePart.length,
+        footerLength: footerStart.length
+      });
+      
       // 既存のメッセージを抽出
       const existingMessages = extractMessagesFromContent(messagePart);
+      console.log(`📜 既存メッセージ数: ${existingMessages.length}`);
       
       // 新しいメッセージを追加
       existingMessages.push(message);
+      console.log(`📝 メッセージ追加後: ${existingMessages.length}件`);
       
       // メッセージ数を7個に制限
       const limitedMessages = existingMessages.slice(-7);
+      console.log(`📊 制限後のメッセージ数: ${limitedMessages.length}`);
       
       // 新しいメッセージ部分を構築
       const newMessagePart = buildMessageContent(limitedMessages);
+      console.log(`🔧 新しいメッセージ部分のサイズ: ${newMessagePart.length}文字`);
       
       // ファイル全体を再構築
       const newContent = headerPart + '\n' + newMessagePart + '\n' + footerStart;
+      console.log(`📄 新しいファイルサイズ: ${newContent.length}文字`);
+      
       await fs.writeFile(filePath, newContent, 'utf8');
+      console.log(`✅ ファイル書き込み完了: ${path.basename(filePath)}`);
     } else {
-      console.error('ファイル形式が認識できません');
+      console.error(`❌ ファイル形式が認識できません:`, {
+        filePath,
+        contentLength: currentContent.length,
+        headerEndCount: (currentContent.match(new RegExp(headerEnd, 'g')) || []).length,
+        inputLineCount: (currentContent.match(new RegExp(inputLineStart, 'g')) || []).length
+      });
+      
+      // フォールバック: メッセージを最後に追加
+      const fallbackContent = currentContent + '\n' + message;
+      await fs.writeFile(filePath, fallbackContent, 'utf8');
+      console.log(`⚠️ フォールバック書き込み完了`);
     }
   } catch (error) {
-    console.error('ファイル書き込みエラー:', error);
+    console.error(`❌ ファイル書き込みエラー:`, {
+      filePath,
+      message: message.substring(0, 100),
+      error: error.message,
+      stack: error.stack
+    });
+    
+    // 重要なエラーの場合は再スロー
+    throw error;
   }
 }
 
