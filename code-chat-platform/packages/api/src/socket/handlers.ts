@@ -419,14 +419,61 @@ export const handleConnection = (io: Server) => {
           joined_at: participant.joined_at || new Date().toISOString()
         });
 
+        // 古い参加者レコードのクリーンアップ（24時間以上前のlast_seen）
+        await supabase
+          .from('room_participants')
+          .delete()
+          .eq('room_id', room.id)
+          .lt('last_seen', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+        // 重複参加者の削除（同じusernameが複数ある場合、最新のもの以外を削除）
+        const { data: duplicates } = await supabase
+          .from('room_participants')
+          .select('id, username, joined_at')
+          .eq('room_id', room.id)
+          .eq('username', username)
+          .order('joined_at', { ascending: false });
+
+        if (duplicates && duplicates.length > 1) {
+          // 最新の1件を除いて削除
+          const toDelete = duplicates.slice(1).map(d => d.id);
+          await supabase
+            .from('room_participants')
+            .delete()
+            .in('id', toDelete);
+          console.log(`🧹 [${socket.id}] 重複参加者レコードを削除: ${toDelete.length}件`);
+        }
+
         // 現在の参加者一覧を送信
-        const { data: participants } = await supabase
+        const { data: participants, error: participantsError } = await supabase
           .from('room_participants')
           .select('username, role, joined_at')
           .eq('room_id', room.id)
           .order('joined_at');
 
-        socket.emit('participants-list', participants || []);
+        // エラーハンドリングとデータ検証
+        let validParticipants = [];
+        if (participantsError) {
+          console.error(`❌ [${socket.id}] 参加者一覧取得エラー:`, participantsError);
+        } else if (participants && Array.isArray(participants)) {
+          // nullや無効なデータをフィルタリング
+          validParticipants = participants.filter(p => 
+            p && 
+            typeof p === 'object' && 
+            p.username && 
+            typeof p.username === 'string' && 
+            p.username.trim().length > 0
+          );
+          console.log(`🔍 [${socket.id}] 参加者一覧取得結果:`, {
+            total: participants.length,
+            valid: validParticipants.length,
+            invalid: participants.length - validParticipants.length,
+            room_id: room.id,
+            room_slug
+          });
+        }
+
+        socket.emit('participants-list', validParticipants);
 
         console.log(`${username} joined room ${room_slug}`);
 

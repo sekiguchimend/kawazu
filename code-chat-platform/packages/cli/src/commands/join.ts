@@ -245,19 +245,35 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
 function setupSocketListeners(socket: Socket, codechatFile: string, currentUsername: string) {
   // 新しいメッセージを受信
   socket.on('new-message', async (message) => {
-    const isOwnMessage = message.username === currentUsername;
-    const formattedMessage = formatMessage(
-      message.username, 
-      message.content, 
-      message.created_at,
-      isOwnMessage
-    );
-    
-    await appendMessageToFile(codechatFile, formattedMessage);
+    try {
+      // メッセージの有効性をチェック
+      if (!message || typeof message !== 'object' || !message.username || !message.content) {
+        console.log(chalk.yellow('⚠️ 無効なメッセージを受信しました:'), message);
+        return;
+      }
+
+      const isOwnMessage = message.username === currentUsername;
+      const formattedMessage = formatMessage(
+        message.username, 
+        message.content, 
+        message.created_at,
+        isOwnMessage
+      );
+      
+      await appendMessageToFile(codechatFile, formattedMessage);
+    } catch (error) {
+      console.error(chalk.red('メッセージ処理エラー:'), error.message);
+      console.log(chalk.gray('受信したメッセージ:'), JSON.stringify(message, null, 2));
+    }
   });
 
   // プロフィールURL応答
   socket.on('profile-url-response', (data) => {
+    if (!data || typeof data !== 'object' || !data.username) {
+      console.log(chalk.yellow('⚠️ 無効なプロフィール応答を受信しました'));
+      return;
+    }
+
     if (data.exists && data.url) {
       console.log(chalk.blue(`👤 ${data.username} のプロフィール: ${data.url}`));
       if (!data.is_public) {
@@ -270,16 +286,28 @@ function setupSocketListeners(socket: Socket, codechatFile: string, currentUsern
   
   // ユーザー参加通知
   socket.on('user-joined', (data) => {
+    if (!data || typeof data !== 'object' || !data.username) {
+      console.log(chalk.yellow('⚠️ 無効なユーザー参加通知を受信しました'));
+      return;
+    }
     console.log(chalk.blue(`👋 ${data.username} がルームに参加しました`));
   });
   
   // ユーザー退出通知
   socket.on('user-left', (data) => {
+    if (!data || typeof data !== 'object' || !data.username) {
+      console.log(chalk.yellow('⚠️ 無効なユーザー退出通知を受信しました'));
+      return;
+    }
     console.log(chalk.yellow(`👋 ${data.username} がルームから退出しました`));
   });
   
   // タイピング状態
   socket.on('user-typing', (data) => {
+    if (!data || typeof data !== 'object' || !data.username) {
+      console.log(chalk.yellow('⚠️ 無効なタイピング状態を受信しました'));
+      return;
+    }
     if (data.is_typing) {
       console.log(chalk.gray(`✏️  ${data.username} が入力中...`));
     }
@@ -287,8 +315,23 @@ function setupSocketListeners(socket: Socket, codechatFile: string, currentUsern
   
   // 参加者一覧
   socket.on('participants-list', (participants) => {
-    console.log(chalk.cyan(`👥 参加者 (${participants.length}人): ${participants.map(p => p.username).join(', ')}`));
-    console.log(chalk.gray('💡 ユーザー名をタップしてプロフィールを表示: kawazu profile <username>'));
+    if (!participants || !Array.isArray(participants)) {
+      console.log(chalk.yellow('⚠️ 無効な参加者一覧を受信しました'));
+      return;
+    }
+    
+    try {
+      const usernames = participants
+        .filter(p => p && typeof p === 'object' && p.username)
+        .map(p => p.username)
+        .join(', ');
+      
+      console.log(chalk.cyan(`👥 参加者 (${participants.length}人): ${usernames || '参加者なし'}`));
+      console.log(chalk.gray('💡 ユーザー名をタップしてプロフィールを表示: kawazu profile <username>'));
+    } catch (error) {
+      console.error(chalk.red('参加者一覧の処理でエラーが発生しました:'), error.message);
+      console.log(chalk.gray('受信した参加者データ:'), JSON.stringify(participants, null, 2));
+    }
   });
 
   // ファイル共有関連のリスナー
@@ -298,6 +341,11 @@ function setupSocketListeners(socket: Socket, codechatFile: string, currentUsern
 function setupFileShareListeners(socket: Socket) {
   // ファイル共有リクエスト受信
   socket.on('file-share-request', (data) => {
+    if (!data || !data.file_name || !data.owner_username || !data.share_token) {
+      console.log(chalk.yellow('⚠️ 無効なファイル共有リクエストを受信しました'));
+      return;
+    }
+
     console.log(chalk.blue(`\n📤 ファイル共有リクエスト`));
     console.log(chalk.cyan(`ファイル: ${data.file_name}`));
     console.log(chalk.gray(`所有者: ${data.owner_username}`));
@@ -313,6 +361,11 @@ function setupFileShareListeners(socket: Socket) {
 
   // ファイル共有承認通知
   socket.on('file-share-approved', (data) => {
+    if (!data || !data.file_name || !data.username) {
+      console.log(chalk.yellow('⚠️ 無効なファイル共有承認通知を受信しました'));
+      return;
+    }
+
     console.log(chalk.green(`\n✅ ファイル共有が承認されました`));
     console.log(chalk.cyan(`ファイル: ${data.file_name}`));
     console.log(chalk.gray(`承認者: ${data.username}`));
@@ -323,6 +376,11 @@ function setupFileShareListeners(socket: Socket) {
 
   // ファイル共有拒否通知
   socket.on('file-share-denied', (data) => {
+    if (!data || !data.file_name || !data.username) {
+      console.log(chalk.yellow('⚠️ 無効なファイル共有拒否通知を受信しました'));
+      return;
+    }
+
     console.log(chalk.red(`\n❌ ファイル共有が拒否されました`));
     console.log(chalk.cyan(`ファイル: ${data.file_name}`));
     console.log(chalk.gray(`拒否者: ${data.username}`));
@@ -333,6 +391,11 @@ function setupFileShareListeners(socket: Socket) {
 
   // 共有ファイル更新通知
   socket.on('shared-file-updated', (data) => {
+    if (!data || !data.file_name || !data.updated_by || !data.updated_at) {
+      console.log(chalk.yellow('⚠️ 無効な共有ファイル更新通知を受信しました'));
+      return;
+    }
+
     console.log(chalk.blue(`\n📝 共有ファイルが更新されました`));
     console.log(chalk.cyan(`ファイル: ${data.file_name}`));
     console.log(chalk.gray(`更新者: ${data.updated_by}`));
@@ -341,6 +404,11 @@ function setupFileShareListeners(socket: Socket) {
 
   // ファイル共有作成成功
   socket.on('file-share-created', (data) => {
+    if (!data || !data.file_name || !data.share_token || !data.expires_at) {
+      console.log(chalk.yellow('⚠️ 無効なファイル共有作成通知を受信しました'));
+      return;
+    }
+
     console.log(chalk.green(`\n✅ ファイル共有を作成しました`));
     console.log(chalk.cyan(`ファイル: ${data.file_name}`));
     console.log(chalk.gray(`トークン: ${data.share_token}`));

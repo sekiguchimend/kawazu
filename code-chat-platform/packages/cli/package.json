@@ -1,6 +1,6 @@
 {
   "name": "kawazu",
-  "version": "1.3.0",
+  "version": "1.3.2",
   "description": "kawazu CLI tool for real-time chat in your editor",
   "main": "dist/index.js",
   "bin": {
