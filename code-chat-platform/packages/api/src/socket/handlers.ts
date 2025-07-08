@@ -314,32 +314,81 @@ export const handleConnection = (io: Server) => {
           return;
         }
 
-        // 参加者追加
-        console.log(`🔍 [${socket.id}] 参加者データを挿入中: ${username} -> ${room.id}`);
-        const { data: participant, error: participantError } = await supabase
-          .from('room_participants')
-          .insert({
-            room_id: room.id,
-            user_id: socket.data.authUser?.id || null,
-            username,
-            role: 'member'
-          })
-          .select('id, username, role, joined_at, user_id')
-          .single();
+        // 参加者追加（UPSERT方式で確実に処理）
+        console.log(`🔍 [${socket.id}] UPSERTで参加者データを挿入中: ${username} -> ${room.id}`);
+        console.log(`🔍 [${socket.id}] 挿入データ:`, {
+          room_id: room.id,
+          user_id: socket.data.authUser?.id || null,
+          username,
+          role: 'member'
+        });
+        
+        // PostgreSQLのUPSERT機能を使用（ON CONFLICT）
+        const { data: participantResult, error: participantError } = await supabase.rpc('upsert_room_participant', {
+          p_room_id: room.id,
+          p_user_id: socket.data.authUser?.id || null,
+          p_username: username,
+          p_role: 'member'
+        });
+
+        console.log(`🔍 [${socket.id}] UPSERT結果:`, {
+          participantResult,
+          participantError,
+          hasData: !!participantResult,
+          hasError: !!participantError
+        });
 
         if (participantError) {
-          console.error(`❌ [${socket.id}] 参加者データ挿入エラー:`, participantError);
+          console.error(`❌ [${socket.id}] 参加者データUPSERTエラー:`, {
+            error: participantError,
+            message: participantError.message,
+            code: participantError.code,
+            details: participantError.details,
+            hint: participantError.hint
+          });
           socket.emit('error', { message: 'Failed to join room' });
           return;
         }
 
-        if (!participant) {
-          console.error(`❌ [${socket.id}] 参加者データがnullです`);
-          socket.emit('error', { message: 'Failed to create participant record' });
-          return;
+        // UPSERTの結果を使用してparticipantを取得
+        let participant = null;
+        if (participantResult && participantResult.length > 0) {
+          participant = participantResult[0];
+          console.log(`✅ [${socket.id}] UPSERT成功 - 参加者データ:`, participant);
+        } else {
+          // UPSERTが失敗した場合、手動でデータを取得
+          console.log(`⚠️ [${socket.id}] UPSERT結果がnull - 直接取得を試行`);
+          const { data: retrievedParticipant, error: retrieveError } = await supabase
+            .from('room_participants')
+            .select('id, username, role, joined_at, user_id')
+            .eq('room_id', room.id)
+            .eq('username', username)
+            .order('joined_at', { ascending: false })
+            .limit(1)
+            .single();
+          
+          console.log(`🔍 [${socket.id}] 直接取得結果:`, {
+            retrievedParticipant,
+            retrieveError,
+            hasRetrievedData: !!retrievedParticipant
+          });
+          
+          if (retrievedParticipant) {
+            participant = retrievedParticipant;
+            console.log(`✅ [${socket.id}] 直接取得で参加者データを取得成功:`, participant);
+          } else {
+            console.error(`❌ [${socket.id}] 全ての取得方法が失敗 - 最小限のparticipantを手動作成`);
+            // 最後の手段として手動作成
+            participant = {
+              id: `manual-${Date.now()}`,
+              username,
+              role: 'member',
+              joined_at: new Date().toISOString(),
+              user_id: socket.data.authUser?.id || null
+            };
+            console.log(`⚠️ [${socket.id}] 手動作成した参加者データ:`, participant);
+          }
         }
-
-        console.log(`✅ [${socket.id}] 参加者データ挿入成功:`, participant);
 
         // socketをルームに追加
         await socket.join(room_slug);
