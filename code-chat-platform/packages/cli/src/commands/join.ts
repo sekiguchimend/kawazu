@@ -7,6 +7,7 @@ import { JoinOptions } from '../types';
 import { loadConfig } from '../utils/config';
 import { 
   createCodechatFile, 
+  createCodechatFileIfNotExists,
   getCodechatPath, 
   appendMessageToFile, 
   readFileContent,
@@ -49,8 +50,15 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
     // .codechatファイルのパス
     const codechatFile = getCodechatPath(roomId);
     
-    // .codechatファイルの作成
-    await createCodechatFile(codechatFile, roomId, username);
+    // .codechatファイルの存在チェックと作成
+    const fileResult = await createCodechatFileIfNotExists(codechatFile, roomId, username);
+    
+    if (fileResult.existed) {
+      console.log(chalk.green(`📂 既存のチャットファイルを使用します`));
+      console.log(chalk.gray(`💡 これまでのメッセージ履歴が保持されています`));
+    } else {
+      console.log(chalk.blue(`📄 新しいチャットファイルを作成しました`));
+    }
     
     // WebSocket接続（認証トークン付き）
     const socket = io(config.server_url, {

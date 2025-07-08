@@ -37,6 +37,58 @@ export async function createCodechatFile(
   await createCommandHelpFile(path.dirname(filePath), roomSlug);
 }
 
+// 新しい関数：ファイル存在チェック付きの安全な作成
+export async function createCodechatFileIfNotExists(
+  filePath: string, 
+  roomSlug: string, 
+  username: string
+): Promise<{ created: boolean; existed: boolean }> {
+  try {
+    // ファイルの存在をチェック
+    const fileExists = await fs.pathExists(filePath);
+    
+    if (fileExists) {
+      console.log(`📄 既存のチャットファイルが見つかりました: ${path.basename(filePath)}`);
+      
+      // 既存ファイルのユーザー名を更新（必要に応じて）
+      await updateUsernameInExistingFile(filePath, username);
+      
+      // コマンドヘルプファイルは常に最新にする
+      await createCommandHelpFile(path.dirname(filePath), roomSlug);
+      
+      return { created: false, existed: true };
+    } else {
+      console.log(`📝 新しいチャットファイルを作成中: ${path.basename(filePath)}`);
+      await createCodechatFile(filePath, roomSlug, username);
+      return { created: true, existed: false };
+    }
+  } catch (error) {
+    console.error('ファイル作成チェックエラー:', error);
+    // エラーの場合は安全のため新しいファイルを作成
+    await createCodechatFile(filePath, roomSlug, username);
+    return { created: true, existed: false };
+  }
+}
+
+// 既存ファイルのユーザー名を更新
+async function updateUsernameInExistingFile(filePath: string, newUsername: string): Promise<void> {
+  try {
+    const content = await fs.readFile(filePath, 'utf8');
+    
+    // ヘッダー部分のユーザー名を更新
+    const userLineRegex = /^ User: .+$/m;
+    const updatedContent = content.replace(userLineRegex, ` User: ${newUsername}`);
+    
+    if (content !== updatedContent) {
+      await fs.writeFile(filePath, updatedContent, 'utf8');
+      console.log(`👤 ファイル内のユーザー名を更新しました: ${newUsername}`);
+    }
+  } catch (error) {
+    console.error('ユーザー名更新エラー:', error);
+    // エラーは無視（ファイルが存在することが重要）
+  }
+}
+
 export async function appendMessageToFile(filePath: string, message: string): Promise<void> {
   try {
     // ファイルの内容を読み取り
