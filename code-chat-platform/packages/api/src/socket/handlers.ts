@@ -315,6 +315,7 @@ export const handleConnection = (io: Server) => {
         }
 
         // 参加者追加
+        console.log(`🔍 [${socket.id}] 参加者データを挿入中: ${username} -> ${room.id}`);
         const { data: participant, error: participantError } = await supabase
           .from('room_participants')
           .insert({
@@ -323,14 +324,22 @@ export const handleConnection = (io: Server) => {
             username,
             role: 'member'
           })
-          .select()
+          .select('id, username, role, joined_at, user_id')
           .single();
 
         if (participantError) {
-          console.error('Join room error:', participantError);
+          console.error(`❌ [${socket.id}] 参加者データ挿入エラー:`, participantError);
           socket.emit('error', { message: 'Failed to join room' });
           return;
         }
+
+        if (!participant) {
+          console.error(`❌ [${socket.id}] 参加者データがnullです`);
+          socket.emit('error', { message: 'Failed to create participant record' });
+          return;
+        }
+
+        console.log(`✅ [${socket.id}] 参加者データ挿入成功:`, participant);
 
         // socketをルームに追加
         await socket.join(room_slug);
@@ -358,7 +367,7 @@ export const handleConnection = (io: Server) => {
         // 他の参加者に通知
         socket.to(room_slug).emit('user-joined', {
           username,
-          joined_at: participant.joined_at
+          joined_at: participant.joined_at || new Date().toISOString()
         });
 
         // 現在の参加者一覧を送信
