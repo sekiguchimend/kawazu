@@ -121,6 +121,21 @@ const sanitizeInput = (input: any): any => {
   return input;
 };
 
+// 重複メッセージ防止用キャッシュ（5秒間のウィンドウ）
+const messageCache = new Map<string, number>();
+
+// メッセージキャッシュのクリーンアップ（古いエントリを削除）
+setInterval(() => {
+  const now = Date.now();
+  const expiryTime = 5000; // 5秒
+  
+  for (const [key, timestamp] of messageCache.entries()) {
+    if (now - timestamp > expiryTime) {
+      messageCache.delete(key);
+    }
+  }
+}, 10000); // 10秒ごとにクリーンアップ
+
 export const handleConnection = (io: Server) => {
   return async (socket: Socket) => {
     console.log(`🔗 [${socket.id}] User connected: ${socket.handshake.address} via ${socket.conn.transport.name}`);
@@ -487,43 +502,35 @@ export const handleConnection = (io: Server) => {
       }
     });
 
-    // メッセージ重複防止用のキャッシュ
-    const recentMessages = new Map<string, number>();
-    
     // メッセージ送信処理
-    socket.on('send-message', async (rawData: SendMessageData) => {
+    socket.on('send-message', async (data: SendMessageData) => {
       try {
-        const data = sanitizeInput(rawData);
-        const { room_slug, username, content, message_type = 'text' } = data;
-        
-        // 重複メッセージチェック（5秒以内の同一内容）
-        const messageKey = `${username}:${content.trim()}`;
-        const now = Date.now();
-        const lastSent = recentMessages.get(messageKey);
-        
-        if (lastSent && (now - lastSent) < 5000) {
-          console.log(`🔍 [${socket.id}] 重複メッセージを無視: "${content.substring(0, 50)}..."`);
-          return;
-        }
-        
-        recentMessages.set(messageKey, now);
-        
-        // 古いエントリをクリーンアップ（10秒以上前）
-        for (const [key, timestamp] of recentMessages.entries()) {
-          if (now - timestamp > 10000) {
-            recentMessages.delete(key);
-          }
-        }
+        const { room_slug, username, content, message_type } = data;
 
-        // 入力検証
-        if (!room_slug || !username || !content) {
-          socket.emit('error', { message: 'Room slug, username, and content are required' });
+        console.log(`📝 [${socket.id}] Message request:`, {
+          room_slug,
+          username: username ? username.substring(0, 20) + (username.length > 20 ? '...' : '') : 'undefined',
+          contentLength: content ? content.length : 0,
+          message_type,
+          room_id: socket.data?.room_id,
+          authUser: socket.data?.authUser?.username
+        });
+
+        // 認証チェック
+        if (!socket.data?.room_slug || !socket.data?.username) {
+          socket.emit('error', { message: 'Not authenticated' });
           return;
         }
 
-        // socket認証チェック
-        if (!socket.data?.room_slug || socket.data.room_slug !== room_slug || socket.data.username !== username) {
-          socket.emit('error', { message: 'Not authorized for this room' });
+        // ルーム一致チェック
+        if (socket.data.room_slug !== room_slug) {
+          socket.emit('error', { message: 'Room mismatch' });
+          return;
+        }
+
+        // ユーザー名一致チェック
+        if (socket.data.username !== username) {
+          socket.emit('error', { message: 'Username mismatch' });
           return;
         }
 
@@ -545,6 +552,20 @@ export const handleConnection = (io: Server) => {
           return;
         }
 
+        // 重複メッセージ防止チェック
+        const messageKey = `${socket.data.room_id}:${username}:${trimmedContent}`;
+        const now = Date.now();
+        const lastMessageTime = messageCache.get(messageKey);
+        
+        if (lastMessageTime && (now - lastMessageTime) < 5000) {
+          console.log(`🔄 [${socket.id}] 重複メッセージを検出（前回から${now - lastMessageTime}ms）- スキップ`);
+          // 重複の場合は無視（エラーも出さない）
+          return;
+        }
+        
+        // メッセージキャッシュに記録
+        messageCache.set(messageKey, now);
+
         // データベースに保存
         console.log(`🔍 [${socket.id}] メッセージ保存開始:`, {
           room_id: socket.data.room_id,
@@ -554,7 +575,8 @@ export const handleConnection = (io: Server) => {
           message_type
         });
 
-        const { data: messageArray, error } = await supabase
+        // INSERT後に直接RETURNINGで結果を取得（より確実）
+        let { data: insertResult, error: insertError } = await supabase
           .from('messages')
           .insert({
             room_id: socket.data.room_id,
@@ -563,38 +585,55 @@ export const handleConnection = (io: Server) => {
             content: trimmedContent,
             message_type
           })
-          .select(`
-            id,
-            username,
-            content,
-            message_type,
-            created_at
-          `);
-
-        // 配列から最初のメッセージを取得（.single()の代替）
-        const message = messageArray && messageArray.length > 0 ? messageArray[0] : null;
+          .select('id, username, content, message_type, created_at')
+          .single();
 
         console.log(`🔍 [${socket.id}] メッセージ保存結果:`, {
-          success: !error,
-          error: error ? error.message : null,
-          message: message || null
+          success: !insertError,
+          error: insertError?.message || null,
+          data: insertResult || null,
+          hasId: insertResult?.id ? true : false
         });
 
-        if (error) {
-          console.error(`❌ [${socket.id}] メッセージ保存エラー:`, error);
+        if (insertError) {
+          console.error(`❌ [${socket.id}] メッセージ保存エラー:`, {
+            message: insertError.message,
+            details: insertError.details,
+            hint: insertError.hint,
+            code: insertError.code
+          });
           socket.emit('error', { message: 'Failed to send message' });
           return;
         }
 
-        if (!message) {
-          console.error(`❌ [${socket.id}] メッセージオブジェクトがnull`);
-          socket.emit('error', { message: 'Message object is null' });
-          return;
+        if (!insertResult) {
+          // INSERTが成功したが結果がnullの場合、別途SELECTで取得を試行
+          console.log(`⚠️ [${socket.id}] INSERT結果がnull - 別途SELECTで取得試行`);
+          
+          const { data: selectResult, error: selectError } = await supabase
+            .from('messages')
+            .select('id, username, content, message_type, created_at')
+            .eq('room_id', socket.data.room_id)
+            .eq('username', username)
+            .eq('content', trimmedContent)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (selectError || !selectResult) {
+            console.error(`❌ [${socket.id}] SELECT取得も失敗:`, selectError?.message);
+            socket.emit('error', { message: 'Message saved but failed to retrieve' });
+            return;
+          }
+
+          // SELECT結果を使用
+          insertResult = selectResult;
+          console.log(`✅ [${socket.id}] SELECT取得成功:`, selectResult);
         }
 
         // メッセージの有効性チェック
-        if (!message.username || !message.content) {
-          console.error(`❌ [${socket.id}] 無効なメッセージオブジェクト:`, message);
+        if (!insertResult.username || !insertResult.content) {
+          console.error(`❌ [${socket.id}] 無効なメッセージオブジェクト:`, insertResult);
           socket.emit('error', { message: 'Invalid message object' });
           return;
         }
@@ -602,11 +641,11 @@ export const handleConnection = (io: Server) => {
         console.log(`📤 [${socket.id}] new-messageイベント送信:`, {
           room_slug,
           message: {
-            id: message.id,
-            username: message.username,
-            content: message.content,
-            message_type: message.message_type,
-            created_at: message.created_at
+            id: insertResult.id,
+            username: insertResult.username,
+            content: insertResult.content,
+            message_type: insertResult.message_type,
+            created_at: insertResult.created_at
           }
         });
 
@@ -639,22 +678,25 @@ export const handleConnection = (io: Server) => {
         }
 
         // ルーム内の全員に配信（送信者を含む）
-        io.to(room_slug).emit('new-message', message);
+        io.to(room_slug).emit('new-message', insertResult);
         
         // 送信者にも確実に配信（念のため）
-        socket.emit('new-message', message);
+        socket.emit('new-message', insertResult);
         
         console.log(`📤 [${socket.id}] メッセージ配信完了:`, {
           room_slug,
           username,
           content: trimmedContent.substring(0, 50) + (trimmedContent.length > 50 ? '...' : ''),
-          messageId: message.id
+          messageId: insertResult.id
         });
 
         console.log(`✅ [${socket.id}] Message sent in ${room_slug}: ${username}`);
 
       } catch (error) {
-        console.error('Send message error:', error);
+        console.error(`❌ [${socket.id}] Send message error:`, {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : 'No stack trace'
+        });
         socket.emit('error', { message: 'Internal server error' });
       }
     });
