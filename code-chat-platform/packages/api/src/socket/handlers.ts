@@ -239,17 +239,66 @@ export const handleConnection = (io: Server) => {
           }
         }
 
-        // 参加者重複チェック
+        // 既存の参加者データをチェック・クリーンアップ
         const { data: existingParticipant } = await supabase
           .from('room_participants')
-          .select('id')
+          .select('id, user_id, last_seen')
           .eq('room_id', room.id)
           .eq('username', username)
           .single();
 
         if (existingParticipant) {
-          socket.emit('error', { message: 'Username already taken in this room' });
-          return;
+          console.log(`🔍 [${socket.id}] 既存の参加者データが見つかりました: ${username}`);
+          
+          // 同じ認証ユーザーの場合は削除して再参加を許可
+          const isSameUser = socket.data.authUser?.id && socket.data.authUser.id === existingParticipant.user_id;
+          
+          if (isSameUser) {
+            console.log(`🔄 [${socket.id}] 同じユーザーの再参加 - 既存データを削除: ${username}`);
+            
+            // 既存の参加者データを削除
+            const { error: deleteError } = await supabase
+              .from('room_participants')
+              .delete()
+              .eq('id', existingParticipant.id);
+            
+            if (deleteError) {
+              console.error(`❌ [${socket.id}] 既存参加者データの削除に失敗:`, deleteError);
+              socket.emit('error', { message: 'Failed to rejoin room' });
+              return;
+            }
+            
+            console.log(`✅ [${socket.id}] 既存参加者データを削除しました: ${username}`);
+          } else {
+            // 最後のアクティビティから30分以上経過している場合は削除を許可
+            const lastSeen = new Date(existingParticipant.last_seen || 0);
+            const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+            
+            if (lastSeen < thirtyMinutesAgo) {
+              console.log(`🔄 [${socket.id}] 非アクティブな参加者データを削除: ${username} (最終アクティビティ: ${lastSeen.toISOString()})`);
+              
+              const { error: deleteError } = await supabase
+                .from('room_participants')
+                .delete()
+                .eq('id', existingParticipant.id);
+              
+              if (deleteError) {
+                console.error(`❌ [${socket.id}] 既存参加者データの削除に失敗:`, deleteError);
+                socket.emit('error', { message: 'Failed to rejoin room' });
+                return;
+              }
+              
+              console.log(`✅ [${socket.id}] 非アクティブな参加者データを削除しました: ${username}`);
+            } else {
+              // アクティブな別ユーザーがいる場合はエラー
+              console.log(`❌ [${socket.id}] アクティブなユーザーが既に存在: ${username}`);
+              socket.emit('error', { 
+                message: 'Username already taken in this room',
+                details: 'An active user with this username is already in the room'
+              });
+              return;
+            }
+          }
         }
 
         // 参加者数制限チェック
