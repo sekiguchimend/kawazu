@@ -24,8 +24,9 @@ import { securityMonitor } from './middleware/security';
 
 const app = express();
 
-// Render.comなどのプロキシ環境でのtrust proxy設定
-app.set('trust proxy', true);
+// セキュアなtrust proxy設定（Render.com環境対応）
+// 1つのプロキシレイヤーのみ信頼（Render.comの場合）
+app.set('trust proxy', 1);
 
 const server = createServer(app);
 
@@ -71,7 +72,7 @@ app.use(helmet({
   }
 }));
 
-// レート制限（プロキシ環境対応）
+// レート制限（プロキシ環境対応・セキュア設定）
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15分
   max: 100, // 最大リクエスト数
@@ -81,48 +82,20 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // プロキシ環境での安全なIP取得
-  keyGenerator: (req) => {
-    // Render.comなどでは、true-client-ipまたはcf-connecting-ipが信頼できる
-    const trustedIp = req.get('true-client-ip') || req.get('cf-connecting-ip');
-    if (trustedIp) {
-      return trustedIp;
-    }
-    
-    // X-Forwarded-Forヘッダーの最初のIPを使用（但し、信頼できるプロキシからの場合のみ）
-    const forwarded = req.get('X-Forwarded-For');
-    if (forwarded) {
-      return forwarded.split(',')[0].trim();
-    }
-    
-    // フォールバック：req.ipを使用
-    return req.ip || req.connection.remoteAddress || 'unknown';
-  },
+  // セキュアなtrust proxy設定
+  skipSuccessfulRequests: false,
+  skipFailedRequests: false,
   skip: (req) => {
     // ヘルスチェックなどの特定のエンドポイントをスキップ
     return req.path === '/health' || req.path === '/api';
   }
 });
 
-// スローダウン（プロキシ環境対応）
+// スローダウン（セキュア設定）
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
   delayAfter: 50,
-  delayMs: () => 500,
-  // rate limiterと同じIP取得ロジック
-  keyGenerator: (req) => {
-    const trustedIp = req.get('true-client-ip') || req.get('cf-connecting-ip');
-    if (trustedIp) {
-      return trustedIp;
-    }
-    
-    const forwarded = req.get('X-Forwarded-For');
-    if (forwarded) {
-      return forwarded.split(',')[0].trim();
-    }
-    
-    return req.ip || req.connection.remoteAddress || 'unknown';
-  }
+  delayMs: () => 500
 });
 
 app.use(limiter);

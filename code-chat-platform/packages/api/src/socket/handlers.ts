@@ -487,11 +487,33 @@ export const handleConnection = (io: Server) => {
       }
     });
 
+    // メッセージ重複防止用のキャッシュ
+    const recentMessages = new Map<string, number>();
+    
     // メッセージ送信処理
     socket.on('send-message', async (rawData: SendMessageData) => {
       try {
         const data = sanitizeInput(rawData);
         const { room_slug, username, content, message_type = 'text' } = data;
+        
+        // 重複メッセージチェック（5秒以内の同一内容）
+        const messageKey = `${username}:${content.trim()}`;
+        const now = Date.now();
+        const lastSent = recentMessages.get(messageKey);
+        
+        if (lastSent && (now - lastSent) < 5000) {
+          console.log(`🔍 [${socket.id}] 重複メッセージを無視: "${content.substring(0, 50)}..."`);
+          return;
+        }
+        
+        recentMessages.set(messageKey, now);
+        
+        // 古いエントリをクリーンアップ（10秒以上前）
+        for (const [key, timestamp] of recentMessages.entries()) {
+          if (now - timestamp > 10000) {
+            recentMessages.delete(key);
+          }
+        }
 
         // 入力検証
         if (!room_slug || !username || !content) {
@@ -532,7 +554,7 @@ export const handleConnection = (io: Server) => {
           message_type
         });
 
-        const { data: message, error } = await supabase
+        const { data: messageArray, error } = await supabase
           .from('messages')
           .insert({
             room_id: socket.data.room_id,
@@ -547,8 +569,10 @@ export const handleConnection = (io: Server) => {
             content,
             message_type,
             created_at
-          `)
-          .single();
+          `);
+
+        // 配列から最初のメッセージを取得（.single()の代替）
+        const message = messageArray && messageArray.length > 0 ? messageArray[0] : null;
 
         console.log(`🔍 [${socket.id}] メッセージ保存結果:`, {
           success: !error,
