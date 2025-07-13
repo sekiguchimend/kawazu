@@ -544,14 +544,15 @@ function setupFileWatcher(
             
             console.log(chalk.green('✅ メッセージ送信完了'));
             
-            // メッセージ送信後に入力エリアをクリア（一時的にコメントアウト）
-            /*
+            // メッセージ送信後に入力エリアをクリア
             setTimeout(async () => {
               console.log(chalk.gray('🔍 入力エリアをクリア中...'));
               await clearInputArea(codechatFile);
+              
+              // lastContentを更新してファイル監視のループを防ぐ
+              lastContent = await readFileContent(codechatFile);
               console.log(chalk.gray('✅ 入力エリアクリア完了'));
             }, 100);
-            */
           } else {
             console.log(chalk.yellow('🔍 サニタイズ後のコンテンツが空のため送信しません'));
           }
