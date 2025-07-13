@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "@supabase/supabase-js": "^2.50.0",
-    "kawazu": "^1.2.0"
+    "@supabase/supabase-js": "^2.50.0"
   }
 }

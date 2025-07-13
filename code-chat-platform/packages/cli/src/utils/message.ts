@@ -21,35 +21,18 @@ export function formatMessage(username: string, content: string, timestamp: stri
 }
 
 function formatTextMessage(username: string, content: string, time: string, icon: string, color: string, isOwnMessage: boolean): string {
-  const messageWidth = 65; // チャット履歴エリア内の幅
-  const maxContentWidth = 45;
+  // シンプルな左寄せフォーマット: 名前-アイコン-メッセージ
+  const wrappedContent = wrapText(content, 60);
   
-  // メッセージ内容を適切に分割
-  const wrappedContent = wrapText(content, maxContentWidth);
+  // ヘッダー行: 名前 アイコン
+  const header = `${color}${username} ${icon}${'\x1b[0m'}`;
   
-  if (isOwnMessage) {
-    // 右寄せ（自分のメッセージ）
-    const headerLine = `${time} ─ ${username} ${icon}`.padStart(messageWidth);
-    const contentLines = wrappedContent.map(line => 
-      `║${(' '.repeat(messageWidth - line.length - 3))}${line}  ║`
-    );
-    
-    return `║${' '.repeat(messageWidth - 2)}║
-║${' '.repeat(Math.max(0, messageWidth - headerLine.length - 2))}${color}┌─${headerLine}─┐${'\x1b[0m'}║
-${contentLines.join('\n')}
-║${' '.repeat(Math.max(0, messageWidth - 2))}${color}└${'─'.repeat(Math.min(headerLine.length + 4, messageWidth - 4))}┘${'\x1b[0m'}║`;
-  } else {
-    // 左寄せ（他の人のメッセージ）
-    const headerLine = `${icon} ${username} ─ ${time}`;
-    const contentLines = wrappedContent.map(line => 
-      `║  ${line}${' '.repeat(Math.max(0, messageWidth - line.length - 4))}║`
-    );
-    
-    return `║${' '.repeat(messageWidth - 2)}║
-║${color}┌─${headerLine}${'─'.repeat(Math.max(0, messageWidth - headerLine.length - 6))}┐${'\x1b[0m'}║
-${contentLines.join('\n')}
-║${color}└${'─'.repeat(Math.min(headerLine.length + 2, messageWidth - 4))}┘${'\x1b[0m'}║`;
-  }
+  // メッセージ行
+  const messageLines = wrappedContent.map(line => `  ${line}`);
+  
+  return `${header}
+${messageLines.join('\n')}
+`;
 }
 
 function getUserIcon(username: string): string {
@@ -98,52 +81,31 @@ function wrapText(text: string, maxWidth: number): string[] {
 }
 
 function formatCodeMessage(username: string, content: string, time: string, icon: string, color: string, isOwnMessage: boolean): string {
-  const messageWidth = 65;
   const codeBlocks = content.split('```');
   
-  if (isOwnMessage) {
-    // 右寄せコードメッセージ
-    const headerLine = `${time} ─ ${username} ${icon} 💻`;
-    let formatted = `║${' '.repeat(messageWidth - 2)}║
-║${' '.repeat(Math.max(0, messageWidth - headerLine.length - 6))}${color}┌─${headerLine}─┐${'\x1b[0m'}║\n`;
-    
-    for (let i = 0; i < codeBlocks.length; i++) {
-      if (i % 2 === 1) { // コードブロック内
-        const codeLines = codeBlocks[i].split('\n').filter(line => line.trim());
-        codeLines.forEach(line => {
-          const truncatedLine = line.substring(0, 50);
-          formatted += `║${' '.repeat(Math.max(0, messageWidth - truncatedLine.length - 5))}\x1b[100m${truncatedLine}\x1b[0m  ║\n`;
-        });
-      } else if (codeBlocks[i].trim()) { // テキスト部分
-        const textLine = codeBlocks[i].trim().substring(0, 50);
-        formatted += `║${' '.repeat(Math.max(0, messageWidth - textLine.length - 5))}${textLine}  ║\n`;
-      }
+  // シンプルな左寄せフォーマット: 名前-アイコン-💻
+  const header = `${color}${username} ${icon} 💻${'\x1b[0m'}`;
+  
+  let formatted = `${header}\n`;
+  
+  for (let i = 0; i < codeBlocks.length; i++) {
+    if (i % 2 === 1) { // コードブロック内
+      const codeLines = codeBlocks[i].split('\n').filter(line => line.trim());
+      codeLines.forEach(line => {
+        formatted += `  \x1b[100m${line}\x1b[0m\n`;
+      });
+    } else if (codeBlocks[i].trim()) { // テキスト部分
+      const textLines = codeBlocks[i].trim().split('\n');
+      textLines.forEach(line => {
+        if (line.trim()) {
+          formatted += `  ${line}\n`;
+        }
+      });
     }
-    
-    formatted += `║${' '.repeat(Math.max(0, messageWidth - headerLine.length - 4))}${color}└${'─'.repeat(Math.min(headerLine.length + 2, messageWidth - 6))}┘${'\x1b[0m'}║`;
-    return formatted;
-  } else {
-    // 左寄せコードメッセージ
-    const headerLine = `${icon} ${username} ─ ${time} 💻`;
-    let formatted = `║${' '.repeat(messageWidth - 2)}║
-║${color}┌─${headerLine}${'─'.repeat(Math.max(0, messageWidth - headerLine.length - 6))}┐${'\x1b[0m'}║\n`;
-    
-    for (let i = 0; i < codeBlocks.length; i++) {
-      if (i % 2 === 1) { // コードブロック内
-        const codeLines = codeBlocks[i].split('\n').filter(line => line.trim());
-        codeLines.forEach(line => {
-          const truncatedLine = line.substring(0, 55);
-          formatted += `║  \x1b[100m${truncatedLine.padEnd(55)}\x1b[0m  ║\n`;
-        });
-      } else if (codeBlocks[i].trim()) { // テキスト部分
-        const textLine = codeBlocks[i].trim();
-        formatted += `║  ${textLine.substring(0, 55).padEnd(55)}  ║\n`;
-      }
-    }
-    
-    formatted += `║${color}└${'─'.repeat(Math.min(headerLine.length + 2, messageWidth - 4))}┘${'\x1b[0m'}║`;
-    return formatted;
   }
+  
+  formatted += '\n';
+  return formatted;
 }
 
 export function sanitizeMessage(content: string): string {
