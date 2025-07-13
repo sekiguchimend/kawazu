@@ -21,11 +21,11 @@ export function formatMessage(username: string, content: string, timestamp: stri
 }
 
 function formatTextMessage(username: string, content: string, time: string, icon: string, color: string, isOwnMessage: boolean): string {
-  // シンプルな左寄せフォーマット: 名前-アイコン-メッセージ
+  // シンプルな左寄せフォーマット: 名前 アイコン 時刻
   const wrappedContent = wrapText(content, 60);
   
-  // ヘッダー行: 名前 アイコン
-  const header = `${color}${username} ${icon}${'\x1b[0m'}`;
+  // ヘッダー行: 名前 アイコン 時刻（ANSIコードを削除）
+  const header = `${username} ${icon} ${time}`;
   
   // メッセージ行
   const messageLines = wrappedContent.map(line => `  ${line}`);
@@ -83,8 +83,8 @@ function wrapText(text: string, maxWidth: number): string[] {
 function formatCodeMessage(username: string, content: string, time: string, icon: string, color: string, isOwnMessage: boolean): string {
   const codeBlocks = content.split('```');
   
-  // シンプルな左寄せフォーマット: 名前-アイコン-💻
-  const header = `${color}${username} ${icon} 💻${'\x1b[0m'}`;
+  // シンプルな左寄せフォーマット: 名前 アイコン 💻 時刻（ANSIコードを削除）
+  const header = `${username} ${icon} 💻 ${time}`;
   
   let formatted = `${header}\n`;
   
@@ -92,7 +92,7 @@ function formatCodeMessage(username: string, content: string, time: string, icon
     if (i % 2 === 1) { // コードブロック内
       const codeLines = codeBlocks[i].split('\n').filter(line => line.trim());
       codeLines.forEach(line => {
-        formatted += `  \x1b[100m${line}\x1b[0m\n`;
+        formatted += `  ${line}\n`;
       });
     } else if (codeBlocks[i].trim()) { // テキスト部分
       const textLines = codeBlocks[i].trim().split('\n');

@@ -187,8 +187,10 @@ function extractMessagesFromContent(messageSection: string): string[] {
   let collectingMessage = false;
   
   for (const line of lines) {
-    // メッセージの開始を検出（[時刻] で始まる行）
-    if (line.match(/^\[[\d:]+\]/)) {
+    // メッセージの開始を検出（名前 アイコン 時刻の形式）
+    // 例: "関口峻矢 👦 12:34" または ANSIエスケープシーケンス付き
+    if (line.match(/^[^\s]+\s+[^\s]+\s+\d{1,2}:\d{2}/) || 
+        line.match(/^\[[0-9;]+m[^\s]+\s+[^\s]+.*\[[0-9;]*m/)) {
       // 前のメッセージを保存
       if (currentMessage.trim()) {
         messages.push(currentMessage.trim());
