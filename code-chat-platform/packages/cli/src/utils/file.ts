@@ -18,17 +18,11 @@ export async function createCodechatFile(
  User: ${username}
  Max Messages: 7 (最新メッセージのみ表示)
 
-================================================================================
-
-💭 チャットを開始しましょう！
-
-================================================================================
+💭 「チャットを開始しましょう！」
 
 
 ------------------------------------------------------------------------------>
 メッセージを上の線上に書き
-
-================================================================================
 `;
   
   await fs.writeFile(filePath, initialContent, 'utf8');
@@ -215,7 +209,7 @@ function extractMessagesFromContent(messageSection: string): string[] {
     messages.push(currentMessage.trim());
   }
   
-  return messages.filter(msg => msg.length > 0 && !msg.includes('💭 チャットを開始しましょう！'));
+  return messages.filter(msg => msg.length > 0 && !msg.includes('💭 チャットを開始しましょう！') && !msg.includes('💭 「チャットを開始しましょう！」'));
 }
 
 function extractExistingMessages(historySection: string): string[] {
@@ -244,12 +238,12 @@ function extractExistingMessages(historySection: string): string[] {
     }
   }
   
-  return messages.filter(msg => msg.length > 0 && !msg.includes('💭 チャットを開始しましょう！'));
+  return messages.filter(msg => msg.length > 0 && !msg.includes('💭 チャットを開始しましょう！') && !msg.includes('💭 「チャットを開始しましょう！」'));
 }
 
 function buildMessageContent(messages: string[]): string {
   if (messages.length === 0) {
-    return '💭 チャットを開始しましょう！';
+    return '💭 「チャットを開始しましょう！」';
   }
   
   // 7つ以上のメッセージがある場合は、古いメッセージ削除の表示を追加
@@ -279,7 +273,7 @@ function buildChatHistory(messages: string[]): string {
     // メッセージがない場合は初期状態
     for (let i = 0; i < 18; i++) {
       if (i === 9) {
-        historyContent += '║                          💭 チャットを開始しましょう！                    ║\n';
+        historyContent += '║                          💭 「チャットを開始しましょう！」                    ║\n';
       } else {
         historyContent += '║                                                                           ║\n';
       }
