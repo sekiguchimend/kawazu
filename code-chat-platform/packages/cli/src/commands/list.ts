@@ -18,10 +18,18 @@ export async function listRooms() {
       return;
     }
     
-    // ファイル情報を表示
+    // ファイル情報を最新順でソートして表示
+    const fileInfos = [];
     for (const file of codechatFiles) {
       const filePath = path.join(currentDir, file);
       const stats = await fs.stat(filePath);
+      fileInfos.push({ file, filePath, stats });
+    }
+    
+    // 最終更新時刻で降順ソート（最新が一番上）
+    fileInfos.sort((a, b) => b.stats.mtime.getTime() - a.stats.mtime.getTime());
+    
+    for (const { file, filePath, stats } of fileInfos) {
       const roomSlug = path.basename(file, '.codechat');
       
       console.log(chalk.green(`📝 ${file}`));

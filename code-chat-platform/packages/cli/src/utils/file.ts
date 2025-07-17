@@ -1,5 +1,8 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import fetch from 'node-fetch';
+import chalk from 'chalk';
+import { formatMessage } from './message';
 
 export function getCodechatPath(roomSlug: string, workingDir: string = process.cwd()): string {
   return path.join(workingDir, `${roomSlug}.codechat`);
@@ -133,12 +136,13 @@ export async function appendMessageToFile(filePath: string, message: string): Pr
       existingMessages.push(message);
       console.log(`📝 メッセージ追加後: ${existingMessages.length}件`);
       
-      // メッセージ数を7個に制限
-      const limitedMessages = existingMessages.slice(-7);
+      // メッセージを逆順にして最新7件を取得（最新が最初に来るように）
+      const reversedMessages = [...existingMessages].reverse();
+      const limitedMessages = reversedMessages.slice(0, 7);
       console.log(`📊 制限後のメッセージ数: ${limitedMessages.length}`);
       
-      // 新しいメッセージ部分を構築
-      const newMessagePart = buildMessageContent(limitedMessages);
+      // 新しいメッセージ部分を構築（既に正しい順序なので逆順処理なし）
+      const newMessagePart = buildMessageContentWithoutReverse(limitedMessages);
       console.log(`🔧 新しいメッセージ部分のサイズ: ${newMessagePart.length}文字`);
       
       // ファイル全体を再構築
@@ -246,13 +250,38 @@ function buildMessageContent(messages: string[]): string {
     return '💭 「チャットを開始しましょう！」';
   }
   
+  // メッセージを最新順（新しいものを上）で表示するために逆順にする
+  const reversedMessages = [...messages].reverse();
+  
   // 7つ以上のメッセージがある場合は、古いメッセージ削除の表示を追加
   let content = '';
   if (messages.length >= 7) {
-    content += '▲ 古いメッセージは自動削除されます（7つまで表示）\n\n';
+    content += '▼ 古いメッセージは自動削除されます（7つまで表示、最新順）\n\n';
   }
   
-  // メッセージを追加
+  // メッセージを追加（最新が上に来るように）
+  for (let i = 0; i < reversedMessages.length; i++) {
+    content += reversedMessages[i];
+    if (i < reversedMessages.length - 1) {
+      content += '\n';
+    }
+  }
+  
+  return content;
+}
+
+function buildMessageContentWithoutReverse(messages: string[]): string {
+  if (messages.length === 0) {
+    return '💭 「チャットを開始しましょう！」';
+  }
+  
+  // 7つ以上のメッセージがある場合は、古いメッセージ削除の表示を追加
+  let content = '';
+  if (messages.length >= 7) {
+    content += '▼ 古いメッセージは自動削除されます（7つまで表示、最新順）\n\n';
+  }
+  
+  // メッセージを追加（既に正しい順序なので逆順処理なし）
   for (let i = 0; i < messages.length; i++) {
     content += messages[i];
     if (i < messages.length - 1) {
@@ -279,7 +308,7 @@ function buildChatHistory(messages: string[]): string {
       }
     }
   } else {
-    // メッセージがある場合は表示
+    // メッセージを最新順で表示（逆順処理は呼び出し側で実施済み前提）
     let lineCount = 0;
     const maxLines = 18;
     
@@ -453,4 +482,96 @@ export async function createCommandHelpFile(
 
   await fs.writeFile(helpFilePath, helpContent, 'utf8');
   console.log(`📖 コマンドヘルプファイルを作成しました: ${roomSlug}-commands.kawazu`);
+}
+
+// メッセージ履歴を取得してファイルに反映する関数
+export async function loadMessageHistory(
+  codechatFile: string, 
+  roomSlug: string, 
+  serverUrl: string,
+  limit: number = 50
+): Promise<void> {
+  try {
+    console.log(chalk.blue('📜 メッセージ履歴を取得中...'));
+    
+    // サーバーからメッセージ履歴を取得
+    const response = await fetch(`${serverUrl}/api/messages/${roomSlug}?limit=${limit}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      console.log(chalk.yellow('⚠️ メッセージ履歴の取得に失敗しました (サーバー応答: ' + response.status + ')'));
+      return;
+    }
+
+    const result = await response.json() as any;
+    
+    if (!result.success || !result.data || !result.data.messages) {
+      console.log(chalk.yellow('⚠️ メッセージ履歴が見つかりませんでした'));
+      return;
+    }
+
+    const messages = result.data.messages;
+    
+    if (messages.length === 0) {
+      console.log(chalk.gray('💭 まだメッセージがありません'));
+      return;
+    }
+
+    console.log(chalk.green(`📜 ${messages.length}件のメッセージ履歴を取得しました`));
+    
+    // メッセージを適切な形式にフォーマット
+    const formattedMessages: string[] = [];
+    for (const message of messages) {
+      const formattedMessage = formatMessage(
+        message.username,
+        message.content,
+        message.created_at,
+        false // 履歴のメッセージは他人のメッセージとして扱う
+      );
+      formattedMessages.push(formattedMessage);
+    }
+
+    // 既存のファイル内容を読み取り
+    const currentContent = await fs.readFile(codechatFile, 'utf8');
+    
+    // ファイルの構造を解析
+    const headerEnd = '================================================================================';
+    const inputLineStart = '------------------------------------------------------------------------------>';
+    
+    const firstHeaderIndex = currentContent.indexOf(headerEnd);
+    const secondHeaderIndex = currentContent.indexOf(headerEnd, firstHeaderIndex + 1);
+    const thirdHeaderIndex = currentContent.indexOf(headerEnd, secondHeaderIndex + 1);
+    const inputLineIndex = currentContent.lastIndexOf(inputLineStart);
+    
+    if (firstHeaderIndex !== -1 && secondHeaderIndex !== -1 && thirdHeaderIndex !== -1 && inputLineIndex !== -1) {
+      // ヘッダー部分
+      const headerPart = currentContent.substring(0, secondHeaderIndex + headerEnd.length);
+      
+      // フッター部分（入力エリア以降）
+      const footerStart = currentContent.substring(thirdHeaderIndex);
+      
+      // メッセージを逆順にして最新7つを取得（最新が最初に来るように）
+      const reversedMessages = [...formattedMessages].reverse();
+      const limitedMessages = reversedMessages.slice(0, 7);
+      
+      // メッセージ部分を構築（既に正しい順序なので逆順処理なし）
+      const messageContent = buildMessageContentWithoutReverse(limitedMessages);
+      
+      // ファイル全体を再構築
+      const newContent = headerPart + '\n' + messageContent + '\n' + footerStart;
+      
+      await fs.writeFile(codechatFile, newContent, 'utf8');
+      console.log(chalk.green(`✅ メッセージ履歴をファイルに反映しました (${limitedMessages.length}件)`));
+    } else {
+      console.log(chalk.yellow('⚠️ ファイル形式が予期した構造と異なります'));
+    }
+    
+  } catch (error) {
+    console.log(chalk.yellow(`⚠️ メッセージ履歴の取得中にエラーが発生しました: ${error.message}`));
+    console.log(chalk.gray('新しいメッセージの投稿は正常に動作します'));
+  }
 }
