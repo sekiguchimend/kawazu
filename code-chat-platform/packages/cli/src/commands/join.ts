@@ -199,8 +199,9 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
         console.log(chalk.green(`✅ ルーム "${data.room.name}" に参加しました！`));
       }
       
-      // メッセージ履歴を取得して表示
+      // メッセージ履歴を取得して表示（最新7つを確実に取得）
       try {
+        console.log(chalk.blue('📜 最新のチャット履歴を取得しています...'));
         await loadMessageHistory(codechatFile, roomId, config.server_url);
       } catch (error) {
         console.log(chalk.yellow('⚠️ メッセージ履歴の取得でエラーが発生しましたが、チャットは正常に使用できます'));
@@ -208,12 +209,13 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
       
       console.log(chalk.green(`📝 ${codechatFile} をエディタで開いてチャットを開始してください`));
       console.log(chalk.blue(`💡 終了するには Ctrl+C を押してください`));
+      console.log(chalk.cyan(`📊 常に最新7つのメッセージを表示中`));
       
       // ファイル監視を開始
       setupFileWatcher(codechatFile, socket, roomId, username);
       
       // Socket イベントリスナーの設定
-      setupSocketListeners(socket, codechatFile, username);
+      setupSocketListeners(socket, codechatFile, username, roomId, config.server_url);
     });
     
     // エラーハンドリング
@@ -251,7 +253,7 @@ export async function joinRoom(roomId: string, options: JoinOptions) {
   }
 }
 
-function setupSocketListeners(socket: Socket, codechatFile: string, currentUsername: string) {
+function setupSocketListeners(socket: Socket, codechatFile: string, currentUsername: string, roomId: string, serverUrl: string) {
   // 新しいメッセージを受信
   socket.on('new-message', async (message) => {
     try {
@@ -287,6 +289,7 @@ function setupSocketListeners(socket: Socket, codechatFile: string, currentUsern
         return;
       }
       
+      // 他人のメッセージをファイルに追加（最新7つを維持）
       const formattedMessage = formatMessage(
         message.username, 
         message.content, 
@@ -295,7 +298,7 @@ function setupSocketListeners(socket: Socket, codechatFile: string, currentUsern
       );
       
       await appendMessageToFile(codechatFile, formattedMessage);
-      console.log(chalk.green('📝 メッセージをファイルに追加しました'));
+      console.log(chalk.green('📝 メッセージをファイルに追加しました（最新7つを維持）'));
     } catch (error) {
       console.error(chalk.red('メッセージ処理エラー:'), error.message);
       console.log(chalk.gray('受信したメッセージ:'), JSON.stringify(message, null, 2));
@@ -476,9 +479,19 @@ function setupFileWatcher(
   watcher.on('change', async () => {
     try {
       console.log(chalk.blue('🔍 ファイル変更検出'));
+      
+      // 短時間での連続変更を防ぐデバウンス処理
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
       const currentContent = await readFileContent(codechatFile);
       console.log(chalk.gray('🔍 現在のファイルサイズ:'), currentContent.length);
       console.log(chalk.gray('🔍 前回のファイルサイズ:'), lastContent.length);
+      
+      // 内容が実質的に変わっていない場合はスキップ
+      if (currentContent === lastContent) {
+        console.log(chalk.gray('🔍 内容に変更がないためスキップ'));
+        return;
+      }
       
       // 新しく追加された内容を検出
       const newContent = extractNewContent(currentContent, lastContent);
@@ -573,12 +586,20 @@ function setupFileWatcher(
             // メッセージ送信後に入力エリアをクリア
             setTimeout(async () => {
               console.log(chalk.gray('🔍 入力エリアをクリア中...'));
+              
+              // ファイル監視を一時的に停止
+              watcher.unwatch(codechatFile);
+              
               await clearInputArea(codechatFile);
               
               // lastContentを更新してファイル監視のループを防ぐ
               lastContent = await readFileContent(codechatFile);
+              
+              // ファイル監視を再開
+              watcher.add(codechatFile);
+              
               console.log(chalk.gray('✅ 入力エリアクリア完了'));
-            }, 100);
+            }, 200);
           } else {
             console.log(chalk.yellow('🔍 サニタイズ後のコンテンツが空のため送信しません'));
             // メッセージを送信しなかった場合でもlastContentを更新

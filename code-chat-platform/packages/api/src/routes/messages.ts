@@ -26,7 +26,7 @@ router.get('/:room_slug', validateSlug, async (req: Request, res: Response) => {
       return;
     }
 
-    // メッセージ履歴取得
+    // メッセージ履歴取得（最新のメッセージから取得して時系列順に並べ替え）
     const { data: messages, error } = await supabase
       .from('messages')
       .select(`
@@ -37,7 +37,8 @@ router.get('/:room_slug', validateSlug, async (req: Request, res: Response) => {
         created_at
       `)
       .eq('room_id', room.id)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })  // 最新から取得
+      .limit(parseInt(limit as string))  // limitを適用
       .range(
         parseInt(offset as string), 
         parseInt(offset as string) + parseInt(limit as string) - 1
@@ -52,6 +53,11 @@ router.get('/:room_slug', validateSlug, async (req: Request, res: Response) => {
       return;
     }
 
+    // 最新から取得したメッセージを時系列順（古いものから新しいものへ）に並べ替え
+    const sortedMessages = (messages || []).sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
     res.json({
       success: true,
       data: {
@@ -60,11 +66,11 @@ router.get('/:room_slug', validateSlug, async (req: Request, res: Response) => {
           name: room.name,
           slug: room_slug
         },
-        messages: messages || [],
+        messages: sortedMessages,
         pagination: {
           limit: parseInt(limit as string),
           offset: parseInt(offset as string),
-          count: messages?.length || 0
+          count: sortedMessages.length
         }
       }
     });

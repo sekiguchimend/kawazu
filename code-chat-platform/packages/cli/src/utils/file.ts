@@ -134,15 +134,16 @@ export async function appendMessageToFile(filePath: string, message: string): Pr
       
       // 新しいメッセージを追加
       existingMessages.push(message);
-      console.log(`📝 メッセージ追加後: ${existingMessages.length}件`);
+      console.log(chalk.green(`📝 メッセージ追加後: ${existingMessages.length}件`));
       
-      // メッセージを逆順にして最新7件を取得（最新が最初に来るように）
-      const reversedMessages = [...existingMessages].reverse();
-      const limitedMessages = reversedMessages.slice(0, 7);
-      console.log(`📊 制限後のメッセージ数: ${limitedMessages.length}`);
+      // 最新7件のみを保持（古いメッセージから削除）
+      const limitedMessages = existingMessages.slice(-7);
+      console.log(chalk.blue(`📊 制限後のメッセージ数: ${limitedMessages.length}件（最新7つを表示）`));
+      console.log(`🔍 制限後の最初のメッセージ: "${limitedMessages[0]?.substring(0, 30)}..."`);
+      console.log(`🔍 制限後の最後のメッセージ: "${limitedMessages[limitedMessages.length - 1]?.substring(0, 30)}..."`);
       
-      // 新しいメッセージ部分を構築（既に正しい順序なので逆順処理なし）
-      const newMessagePart = buildMessageContentWithoutReverse(limitedMessages);
+      // 新しいメッセージ部分を構築（最新メッセージが上に来るように逆順処理）
+      const newMessagePart = buildMessageContentWithReverse(limitedMessages);
       console.log(`🔧 新しいメッセージ部分のサイズ: ${newMessagePart.length}文字`);
       
       // ファイル全体を再構築
@@ -150,7 +151,7 @@ export async function appendMessageToFile(filePath: string, message: string): Pr
       console.log(`📄 新しいファイルサイズ: ${newContent.length}文字`);
       
       await fs.writeFile(filePath, newContent, 'utf8');
-      console.log(`✅ ファイル書き込み完了: ${path.basename(filePath)}`);
+      console.log(chalk.green(`✅ ファイル書き込み完了: ${path.basename(filePath)} (最新7つのメッセージを維持)`));
     } else {
       console.error(`❌ ファイル形式が認識できません:`, {
         filePath,
@@ -184,24 +185,36 @@ function extractMessagesFromContent(messageSection: string): string[] {
   let currentMessage = '';
   let collectingMessage = false;
   
-  for (const line of lines) {
+  console.log(`🔍 メッセージ抽出開始: ${lines.length}行を処理`);
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    console.log(`🔍 処理中の行 ${i}: "${line}"`);
+    
     // メッセージの開始を検出（名前 アイコン 時刻の形式）
-    // 例: "関口峻矢 👦 12:34" または ANSIエスケープシーケンス付き
-    if (line.match(/^[^\s]+\s+[^\s]+\s+\d{1,2}:\d{2}/) || 
-        line.match(/^\[[0-9;]+m[^\s]+\s+[^\s]+.*\[[0-9;]*m/)) {
+    // より厳密なパターンマッチング
+    const messageStartPattern = /^[^\s]+\s+[^\s]+\s+\d{1,2}:\d{2}/;
+    const ansiPattern = /^\[[0-9;]+m[^\s]+\s+[^\s]+.*\[[0-9;]*m/;
+    
+    if (messageStartPattern.test(line) || ansiPattern.test(line)) {
+      console.log(`🔍 メッセージ開始を検出: "${line}"`);
+      
       // 前のメッセージを保存
       if (currentMessage.trim()) {
         messages.push(currentMessage.trim());
+        console.log(`📝 メッセージ保存: "${currentMessage.trim().substring(0, 30)}..."`);
       }
       currentMessage = line;
       collectingMessage = true;
     } else if (collectingMessage && line.trim() !== '') {
-      // メッセージの続きを追加
+      // メッセージの続きを追加（インデントされた行）
       currentMessage += '\n' + line;
+      console.log(`📝 メッセージ続行: "${line}"`);
     } else if (collectingMessage && line.trim() === '') {
       // 空行でメッセージ終了
       if (currentMessage.trim()) {
         messages.push(currentMessage.trim());
+        console.log(`📝 メッセージ終了・保存: "${currentMessage.trim().substring(0, 30)}..."`);
       }
       currentMessage = '';
       collectingMessage = false;
@@ -211,9 +224,25 @@ function extractMessagesFromContent(messageSection: string): string[] {
   // 最後のメッセージを保存
   if (currentMessage.trim()) {
     messages.push(currentMessage.trim());
+    console.log(`📝 最後のメッセージ保存: "${currentMessage.trim().substring(0, 30)}..."`);
   }
   
-  return messages.filter(msg => msg.length > 0 && !msg.includes('💭 チャットを開始しましょう！') && !msg.includes('💭 「チャットを開始しましょう！」'));
+  // フィルタリング前後のメッセージ数を記録
+  const unfilteredCount = messages.length;
+  const filteredMessages = messages.filter(msg => {
+    const isValid = msg.length > 0 && 
+                   !msg.includes('💭 チャットを開始しましょう！') && 
+                   !msg.includes('💭 「チャットを開始しましょう！」') &&
+                   !msg.includes('古いメッセージは自動削除されます');
+    if (!isValid) {
+      console.log(`🗑️ フィルタで除外: "${msg.substring(0, 30)}..."`);
+    }
+    return isValid;
+  });
+  
+  console.log(`📊 メッセージ抽出結果: ${unfilteredCount}件 → ${filteredMessages.length}件`);
+  
+  return filteredMessages;
 }
 
 function extractExistingMessages(historySection: string): string[] {
@@ -285,6 +314,31 @@ function buildMessageContentWithoutReverse(messages: string[]): string {
   for (let i = 0; i < messages.length; i++) {
     content += messages[i];
     if (i < messages.length - 1) {
+      content += '\n';
+    }
+  }
+  
+  return content;
+}
+
+function buildMessageContentWithReverse(messages: string[]): string {
+  if (messages.length === 0) {
+    return '💭 「チャットを開始しましょう！」';
+  }
+  
+  // 7つ以上のメッセージがある場合は、古いメッセージ削除の表示を追加
+  let content = '';
+  if (messages.length >= 7) {
+    content += '▼ 最新7つのメッセージを表示中（古いメッセージは自動削除されます）\n\n';
+  }
+  
+  // メッセージを逆順で追加（最新メッセージが上に来るように）
+  const reversedMessages = [...messages].reverse();
+  console.log(`🔄 メッセージ順序逆転: ${messages.length}件 → 最新が上`);
+  
+  for (let i = 0; i < reversedMessages.length; i++) {
+    content += reversedMessages[i];
+    if (i < reversedMessages.length - 1) {
       content += '\n';
     }
   }
@@ -484,12 +538,12 @@ export async function createCommandHelpFile(
   console.log(`📖 コマンドヘルプファイルを作成しました: ${roomSlug}-commands.kawazu`);
 }
 
-// メッセージ履歴を取得してファイルに反映する関数
+// メッセージ履歴を取得してファイルに反映する関数（常に最新7つを維持）
 export async function loadMessageHistory(
   codechatFile: string, 
   roomSlug: string, 
   serverUrl: string,
-  limit: number = 50
+  limit: number = 100  // より多くのメッセージを取得して最新7つを選択
 ): Promise<void> {
   try {
     console.log(chalk.blue('📜 メッセージ履歴を取得中...'));
@@ -554,18 +608,18 @@ export async function loadMessageHistory(
       // フッター部分（入力エリア以降）
       const footerStart = currentContent.substring(thirdHeaderIndex);
       
-      // メッセージを逆順にして最新7つを取得（最新が最初に来るように）
-      const reversedMessages = [...formattedMessages].reverse();
-      const limitedMessages = reversedMessages.slice(0, 7);
+      // 最新7件のメッセージを取得（常に最新7つを保持）
+      const limitedMessages = formattedMessages.slice(-7);
+      console.log(chalk.blue(`📊 履歴読み込み: ${formattedMessages.length}件 → ${limitedMessages.length}件に制限（最新7つを表示）`));
       
-      // メッセージ部分を構築（既に正しい順序なので逆順処理なし）
-      const messageContent = buildMessageContentWithoutReverse(limitedMessages);
+      // メッセージ部分を構築（最新メッセージが上に来るように）
+      const messageContent = buildMessageContentWithReverse(limitedMessages);
       
       // ファイル全体を再構築
       const newContent = headerPart + '\n' + messageContent + '\n' + footerStart;
       
       await fs.writeFile(codechatFile, newContent, 'utf8');
-      console.log(chalk.green(`✅ メッセージ履歴をファイルに反映しました (${limitedMessages.length}件)`));
+      console.log(chalk.green(`✅ メッセージ履歴をファイルに反映しました (最新${limitedMessages.length}件を表示)`));
     } else {
       console.log(chalk.yellow('⚠️ ファイル形式が予期した構造と異なります'));
     }
